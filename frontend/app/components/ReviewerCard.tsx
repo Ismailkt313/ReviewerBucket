@@ -1,14 +1,15 @@
+import Link from "next/link";
 import type { Reviewer } from "@/app/data/reviewers";
 
-type ReviewerRowProps = {
+type ReviewerCardProps = {
   reviewer: Reviewer;
 };
 
-export default function ReviewerRow({ reviewer }: ReviewerRowProps) {
+export default function ReviewerCard({ reviewer }: ReviewerCardProps) {
   return (
-    <div
+    <Link
+      href={`/reviewers/${reviewer.slug}`}
       role="listitem"
-      tabIndex={0}
       className="flex flex-col justify-between gap-4 rounded-xl border border-border bg-surface p-5 transition-[border-color,box-shadow] duration-150 hover:border-neutral-400 focus-visible:border-foreground focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none dark:hover:border-neutral-500"
     >
       <div className="flex items-center justify-between gap-2">
@@ -19,6 +20,6 @@ export default function ReviewerRow({ reviewer }: ReviewerRowProps) {
           {reviewer.code}
         </span>
       </div>
-    </div>
+    </Link>
   );
 }

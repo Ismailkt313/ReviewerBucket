@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import type { Reviewer } from "@/app/data/reviewers";
-import ReviewerRow from "./ReviewerRow";
+import ReviewerCard from "./ReviewerCard";
 
 type ReviewerExplorerProps = {
   reviewers: Reviewer[];
@@ -133,7 +133,7 @@ export default function ReviewerExplorer({ reviewers }: ReviewerExplorerProps) {
               className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-6"
             >
               {filtered.map((reviewer) => (
-                <ReviewerRow key={reviewer.id} reviewer={reviewer} />
+                <ReviewerCard key={reviewer.id} reviewer={reviewer} />
               ))}
             </div>
           ) : (
