@@ -1,18 +1,13 @@
+import { siteConfig } from "../config";
+
 export default function StructuredData() {
   const websiteSchema = {
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: "Reviewer Bucket",
     description:
-      "A student-focused utility to help Brocamp and Brototype students identify reviewers using reviewer codes shown during reviews.",
-    potentialAction: {
-      "@type": "SearchAction",
-      target: {
-        "@type": "EntryPoint",
-        urlTemplate: "/?q={search_term_string}",
-      },
-      "query-input": "required name=search_term_string",
-    },
+      "A student-focused utility for Brocamp and Brototype students to find reviewers by code or name.",
+    url: siteConfig.url,
   };
 
   const faqSchema = {
@@ -24,31 +19,47 @@ export default function StructuredData() {
         name: "What is Reviewer Bucket?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Reviewer Bucket is a student-focused utility that helps Brocamp and Brototype students identify reviewers using the reviewer codes shown during reviews.",
+          text: "Reviewer Bucket is a simple reviewer finder created to help students identify reviewers using the reviewer codes shown during reviews.",
         },
       },
       {
         "@type": "Question",
-        name: "How do I find a reviewer using a reviewer code?",
+        name: "Who is Reviewer Bucket for?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: 'Enter the reviewer code shown during your review into the search field. For example, type "BR 64" to find the reviewer associated with that code.',
+          text: "It is designed specifically for Brocamp and Brototype students who want to quickly look up and identify their reviewer.",
         },
       },
       {
         "@type": "Question",
-        name: "Can I search without spaces in the reviewer code?",
+        name: "What is a reviewer code?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: 'Yes. You can search using "BR64", "BR 64", or just "64". The search handles spacing and formatting automatically.',
+          text: "A reviewer code (such as BR 64, BR 54, or AS 33) is the unique identifier shown on screen during your review to designate the reviewer.",
         },
       },
       {
         "@type": "Question",
-        name: "Can I search using a reviewer name?",
+        name: "How do I find a reviewer by code?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Yes. You can search by the reviewer's name instead of the code. The search works with both reviewer codes and names.",
+          text: "Enter the code into the search field on the landing page. The matching reviewer will be instantly filtered and displayed.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Can I search BR64 without a space?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Yes. The search is case-insensitive and automatically ignores spacing, so searching for 'BR64', 'br 64', or '64' will all locate the same reviewer.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Can I search by reviewer name?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Yes. You can enter the reviewer's full or partial name in the search box to find their reviewer code.",
         },
       },
       {
@@ -56,7 +67,7 @@ export default function StructuredData() {
         name: "Is Reviewer Bucket an official Brocamp or Brototype platform?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "No. Reviewer Bucket is an independent, student-built utility. It is not affiliated with, endorsed by, or officially connected to Brocamp or Brototype.",
+          text: "No. Reviewer Bucket is an independent, student-built utility. It is not an official Brocamp or Brototype platform and has no official affiliation with either program.",
         },
       },
     ],

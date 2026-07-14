@@ -6,27 +6,37 @@ const faqs = [
   {
     question: "What is Reviewer Bucket?",
     answer:
-      "Reviewer Bucket is a student-focused utility that helps Brocamp and Brototype students identify reviewers using the reviewer codes shown during reviews.",
+      "Reviewer Bucket is a simple reviewer finder created to help students identify reviewers using the reviewer codes shown during reviews.",
   },
   {
-    question: "How do I find a reviewer using a reviewer code?",
+    question: "Who is Reviewer Bucket for?",
     answer:
-      "Enter the reviewer code shown during your review into the search field. For example, type \"BR 64\" to find the reviewer associated with that code.",
+      "It is designed specifically for Brocamp and Brototype students who want to quickly look up and identify their reviewer.",
   },
   {
-    question: "Can I search without spaces in the reviewer code?",
+    question: "What is a reviewer code?",
     answer:
-      "Yes. You can search using \"BR64\", \"BR 64\", or just \"64\". The search handles spacing and formatting automatically.",
+      "A reviewer code (such as BR 64, BR 54, or AS 33) is the unique identifier shown on screen during your review to designate the reviewer.",
   },
   {
-    question: "Can I search using a reviewer name?",
+    question: "How do I find a reviewer by code?",
     answer:
-      "Yes. You can search by the reviewer's name instead of the code. The search works with both reviewer codes and names.",
+      "Enter the code into the search field on the landing page. The matching reviewer will be instantly filtered and displayed.",
+  },
+  {
+    question: "Can I search BR64 without a space?",
+    answer:
+      "Yes. The search is case-insensitive and automatically ignores spacing, so searching for 'BR64', 'br 64', or '64' will all locate the same reviewer.",
+  },
+  {
+    question: "Can I search by reviewer name?",
+    answer:
+      "Yes. You can enter the reviewer's full or partial name in the search box to find their reviewer code.",
   },
   {
     question: "Is Reviewer Bucket an official Brocamp or Brototype platform?",
     answer:
-      "No. Reviewer Bucket is an independent, student-built utility. It is not affiliated with, endorsed by, or officially connected to Brocamp or Brototype.",
+      "No. Reviewer Bucket is an independent, student-built utility. It is not an official Brocamp or Brototype platform and has no official affiliation with either program.",
   },
 ];
 

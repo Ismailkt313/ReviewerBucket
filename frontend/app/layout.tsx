@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import StructuredData from "./components/StructuredData";
+import { siteConfig } from "./config";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,19 +15,27 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteConfig.url),
   title: "Reviewer Bucket | Find Brocamp & Brototype Reviewers",
   description:
-    "Search reviewer codes or names to quickly find Brocamp and Brototype reviewers. A simple, student-focused reviewer finder for Brocamp and Brototype review codes.",
+    "Reviewer Bucket helps Brocamp and Brototype students find reviewers by reviewer code or name. Search codes such as BR 64 and quickly identify the matching reviewer.",
   keywords: [
     "Reviewer Bucket",
-    "Brocamp reviewer",
-    "Brototype reviewer",
     "reviewer finder",
+    "reviewer directory",
     "reviewer code",
+    "reviewer code lookup",
+    "reviewer code search",
     "find reviewer by code",
+    "search reviewer by code",
+    "Brocamp reviewer",
     "Brocamp review",
+    "Brototype reviewer",
     "Brototype review",
   ],
+  alternates: {
+    canonical: "/",
+  },
   robots: {
     index: true,
     follow: true,
@@ -42,14 +51,15 @@ export const metadata: Metadata = {
     type: "website",
     title: "Reviewer Bucket | Find Brocamp & Brototype Reviewers",
     description:
-      "Search reviewer codes or names to quickly find Brocamp and Brototype reviewers.",
+      "Reviewer Bucket helps Brocamp and Brototype students find reviewers by reviewer code or name. Search codes such as BR 64 and quickly identify the matching reviewer.",
     siteName: "Reviewer Bucket",
+    url: "/",
   },
   twitter: {
     card: "summary",
     title: "Reviewer Bucket | Find Brocamp & Brototype Reviewers",
     description:
-      "Search reviewer codes or names to quickly find Brocamp and Brototype reviewers.",
+      "Reviewer Bucket helps Brocamp and Brototype students find reviewers by reviewer code or name. Search codes such as BR 64 and quickly identify the matching reviewer.",
   },
 };
 

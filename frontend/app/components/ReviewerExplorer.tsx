@@ -30,6 +30,8 @@ function matchesReviewer(reviewer: Reviewer, query: string): boolean {
 export default function ReviewerExplorer({ reviewers }: ReviewerExplorerProps) {
   const [query, setQuery] = useState("");
 
+  const isSearching = query.trim() !== "";
+
   const filtered = useMemo(
     () => reviewers.filter((r) => matchesReviewer(r, query)),
     [reviewers, query]
@@ -37,7 +39,11 @@ export default function ReviewerExplorer({ reviewers }: ReviewerExplorerProps) {
 
   return (
     <>
-      <section className="px-4 pb-12 pt-4 sm:px-6 lg:px-8">
+      <section
+        className={`px-4 sm:px-6 lg:px-8 transition-[padding] duration-150 ${
+          isSearching ? "pb-4 pt-2 sm:pb-12 sm:pt-4" : "pb-12 pt-4"
+        }`}
+      >
         <div className="mx-auto max-w-3xl">
           <div className="relative">
             <label htmlFor="reviewer-search" className="sr-only">
@@ -96,27 +102,44 @@ export default function ReviewerExplorer({ reviewers }: ReviewerExplorerProps) {
         </div>
       </section>
 
-      <section id="reviewers" aria-label="Reviewer directory" className="border-t border-border bg-background px-4 py-16 sm:px-6 lg:px-8">
+      <section
+        id="reviewers"
+        aria-label="Reviewer directory"
+        className={`border-t border-border bg-background px-4 sm:px-6 lg:px-8 transition-[padding] duration-150 ${
+          isSearching ? "py-4 sm:py-16" : "py-16"
+        }`}
+      >
         <div className="mx-auto max-w-7xl">
-          <div className="flex items-center justify-between border-b border-border pb-4">
+          <div
+            className={`flex items-baseline justify-between border-b border-border pb-4 transition-[margin] duration-150 ${
+              isSearching ? "mb-4 sm:mb-8" : "mb-8"
+            }`}
+          >
             <h2 className="text-xl font-bold tracking-tight text-foreground">
               Reviewers
             </h2>
             <span className="text-sm font-medium text-secondary">
-              {query ? `${filtered.length} found` : `${reviewers.length} available`}
+              {!isSearching
+                ? `${reviewers.length} reviewers available`
+                : filtered.length === 1
+                ? "1 reviewer found"
+                : `${filtered.length} reviewers found`}
             </span>
           </div>
 
           {filtered.length > 0 ? (
-            <div role="list" className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-6">
+            <div
+              role="list"
+              className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-6"
+            >
               {filtered.map((reviewer) => (
                 <ReviewerRow key={reviewer.id} reviewer={reviewer} />
               ))}
             </div>
           ) : (
-            <div className="mt-16 text-center">
+            <div className="mt-6 text-center sm:mt-16">
               <h3 className="text-lg font-bold text-foreground">
-                Couldn&apos;t find &ldquo;{query}&rdquo;
+                No reviewer found for &ldquo;{query}&rdquo;
               </h3>
               <p className="mt-2 text-sm text-secondary">
                 Check the code or try searching without spaces.
