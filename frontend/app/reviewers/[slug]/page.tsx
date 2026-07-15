@@ -4,6 +4,10 @@ import { notFound } from "next/navigation";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import { reviewers } from "@/app/data/reviewers";
+import { experiences } from "@/app/data/experiences";
+import { ratings } from "@/app/data/ratings";
+import ReviewerRatingSection from "@/app/components/ReviewerRatingSection";
+import StudentExperiencesFeed from "@/app/components/StudentExperiencesFeed";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -37,6 +41,23 @@ export default async function ReviewerDetailPage({ params }: Props) {
     notFound();
   }
 
+  const approved = experiences.filter(
+    (exp) => exp.reviewerId === reviewer.id && exp.status === "approved"
+  );
+
+  const sortedApproved = [...approved].sort((a, b) => {
+    const timeA = new Date(a.createdAt).getTime();
+    const timeB = new Date(b.createdAt).getTime();
+    return (isNaN(timeA) ? 0 : timeA) - (isNaN(timeB) ? 0 : timeB);
+  });
+
+  const reviewerRatings = ratings.filter(
+    (r) => r.reviewerId === reviewer.id && Number.isInteger(r.value) && r.value >= 1 && r.value <= 5
+  );
+
+  const ratingCount = reviewerRatings.length;
+  const ratingTotal = reviewerRatings.reduce((sum, r) => sum + r.value, 0);
+
   return (
     <>
       <Header />
@@ -65,7 +86,7 @@ export default async function ReviewerDetailPage({ params }: Props) {
         </div>
 
         <div className="mx-auto max-w-3xl px-4 pb-20 pt-2 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-4 border-b border-border pb-6">
+          <div className="flex items-center gap-3 border-b border-border pb-6">
             <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
               {reviewer.name}
             </h1>
@@ -75,43 +96,24 @@ export default async function ReviewerDetailPage({ params }: Props) {
           </div>
 
           <div className="mt-8 flex flex-col gap-6">
-            {reviewer.primaryStack || reviewer.reviewAreas || reviewer.description ? (
-              <>
-                {reviewer.description && (
-                  <p className="text-base leading-relaxed text-secondary">
-                    {reviewer.description}
-                  </p>
-                )}
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                  {reviewer.primaryStack && (
-                    <div className="rounded-xl border border-border bg-surface p-5">
-                      <span className="text-xs font-semibold tracking-wider text-muted uppercase">
-                        Primary Stack
+            {reviewer.stacks && reviewer.stacks.length > 0 ? (
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div className="rounded-xl border border-border bg-surface p-5">
+                  <span className="text-xs font-semibold tracking-wider text-muted uppercase">
+                    Stacks
+                  </span>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {reviewer.stacks.map((stack) => (
+                      <span
+                        key={stack}
+                        className="inline-flex items-center rounded-md bg-background border border-border px-2 py-0.5 font-mono text-xs font-medium text-secondary"
+                      >
+                        {stack}
                       </span>
-                      <p className="mt-1 text-base font-bold text-foreground">
-                        {reviewer.primaryStack}
-                      </p>
-                    </div>
-                  )}
-                  {reviewer.reviewAreas && reviewer.reviewAreas.length > 0 && (
-                    <div className="rounded-xl border border-border bg-surface p-5">
-                      <span className="text-xs font-semibold tracking-wider text-muted uppercase">
-                        Review Areas
-                      </span>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {reviewer.reviewAreas.map((area) => (
-                          <span
-                            key={area}
-                            className="inline-flex items-center rounded-md bg-background border border-border px-2 py-0.5 font-mono text-xs font-medium text-secondary"
-                          >
-                            {area}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                    ))}
+                  </div>
                 </div>
-              </>
+              </div>
             ) : (
               <div className="rounded-xl border border-border bg-surface p-6 text-center">
                 <p className="text-sm text-secondary">
@@ -119,6 +121,19 @@ export default async function ReviewerDetailPage({ params }: Props) {
                 </p>
               </div>
             )}
+
+            <ReviewerRatingSection
+              reviewerId={reviewer.id}
+              initialRatingCount={ratingCount}
+              initialRatingTotal={ratingTotal}
+            />
+
+            <div className="border-t border-border pt-8 mt-2">
+              <StudentExperiencesFeed
+                reviewerId={reviewer.id}
+                initialExperiences={sortedApproved}
+              />
+            </div>
           </div>
         </div>
       </main>

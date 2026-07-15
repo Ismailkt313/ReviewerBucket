@@ -9,12 +9,14 @@ import Footer from "./components/Footer";
 import { reviewers } from "./data/reviewers";
 
 export default function Home() {
+  const realReviewers = reviewers.filter((r) => r.id !== "test-reviewer");
+
   return (
     <>
       <Header />
       <main className="flex-1">
         <Hero />
-        <ReviewerExplorer reviewers={reviewers} />
+        <ReviewerExplorer reviewers={realReviewers} />
         <HowItWorks />
         <About />
         <FAQ />
