@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { getApiUrl } from "@/app/utils/api";
+import { getAnonymousClientId } from "@/app/utils/anonymous-id";
 
 type LocalRating = {
   reviewerId: string;
@@ -86,11 +87,7 @@ export default function ReviewerRatingSection({
   const handleRate = async (value: number) => {
     setErrorMessage("");
     try {
-      let clientUuid = localStorage.getItem("reviewerBucket:anonymousClientId");
-      if (!clientUuid) {
-        clientUuid = crypto.randomUUID();
-        localStorage.setItem("reviewerBucket:anonymousClientId", clientUuid);
-      }
+      const clientUuid = getAnonymousClientId();
 
       const res = await fetch(getApiUrl(`/api/reviewers/${reviewerId}/rating`), {
         method: "PUT",

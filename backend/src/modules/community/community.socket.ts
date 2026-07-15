@@ -1,11 +1,27 @@
 import { Server as SocketIOServer, Namespace } from "socket.io";
 import { CommunityService } from "./community.service";
 import { env } from "../../config/env";
-import type { ClientToServerEvents, ServerToClientEvents } from "./community.types";
+import type {
+  ClientToServerEvents,
+  ServerToClientEvents,
+  InternalCommunityMessage,
+  PublicCommunityMessage
+} from "./community.types";
 
 type CommunityNamespace = Namespace<ClientToServerEvents, ServerToClientEvents>;
 
 const communityService = new CommunityService();
+
+const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function toPublicMessage(msg: InternalCommunityMessage, isMine: boolean): PublicCommunityMessage {
+  return {
+    id: msg.id,
+    content: msg.content,
+    createdAt: msg.createdAt,
+    isMine
+  };
+}
 
 function createRateLimiter() {
   const timestamps: number[] = [];
@@ -37,15 +53,27 @@ export function initCommunitySocket(
 ): void {
   const communityNsp = io.of("/community");
 
+  communityNsp.use((socket, next) => {
+    const clientId = socket.handshake.auth?.anonymousClientId;
+    if (typeof clientId !== "string" || !UUID_V4_REGEX.test(clientId)) {
+      next(new Error("Invalid anonymous client ID"));
+      return;
+    }
+    next();
+  });
+
   communityNsp.on("connection", (socket) => {
-    console.log("Socket connected");
+    const anonymousClientId: string = socket.handshake.auth.anonymousClientId;
     const isRateLimited = createRateLimiter();
 
     broadcastOnlineCount(communityNsp);
 
     socket.on("community:history:request", async () => {
       try {
-        const messages = await communityService.getRecentHistory();
+        const internalMessages = await communityService.getRecentHistory();
+        const messages = internalMessages.map((msg) =>
+          toPublicMessage(msg, msg.anonymousClientId === anonymousClientId)
+        );
         socket.emit("community:history", { messages });
       } catch {
         socket.emit("community:error", { message: "Failed to load history" });
@@ -62,19 +90,19 @@ export function initCommunitySocket(
         return;
       }
 
-      const result = await communityService.submitMessage(payload?.content);
+      const result = await communityService.submitMessage(payload?.content, anonymousClientId);
 
       if (!result.success) {
         ack({ success: false, message: result.error });
         return;
       }
 
-      communityNsp.emit("community:message:new", result.message);
-      ack({ success: true });
+      socket.emit("community:message:new", toPublicMessage(result.message, true));
+      socket.broadcast.emit("community:message:new", toPublicMessage(result.message, false));
+      ack({ success: true, messageId: result.message.id });
     });
 
     socket.on("disconnect", () => {
-      console.log("Socket disconnected");
       broadcastOnlineCount(communityNsp);
     });
   });

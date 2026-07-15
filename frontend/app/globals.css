@@ -12,6 +12,10 @@
   --color-border: var(--border);
   --color-accent: var(--accent);
   --color-focus: var(--ring-focus);
+  --color-bubble-mine: var(--bubble-mine);
+  --color-bubble-mine-text: var(--bubble-mine-text);
+  --color-bubble-other: var(--bubble-other);
+  --color-bubble-other-text: var(--bubble-other-text);
 }
 
 :root {
@@ -25,6 +29,10 @@
   --border: #e5e5e5;
   --accent: #171717;
   --ring-focus: #171717;
+  --bubble-mine: #171717;
+  --bubble-mine-text: #ffffff;
+  --bubble-other: #f0f0f0;
+  --bubble-other-text: #171717;
   
   color-scheme: light;
 }
@@ -40,6 +48,10 @@
   --border: #262626;
   --accent: #f5f5f5;
   --ring-focus: #f5f5f5;
+  --bubble-mine: #f5f5f5;
+  --bubble-mine-text: #0d0d0d;
+  --bubble-other: #1e1e1e;
+  --bubble-other-text: #e5e5e5;
   
   color-scheme: dark;
 }

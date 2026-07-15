@@ -9,6 +9,11 @@ const communityMessageSchema = new Schema<ICommunityMessageDoc>(
       trim: true,
       minlength: 2,
       maxlength: 500
+    },
+    anonymousClientId: {
+      type: String,
+      required: false,
+      index: true
     }
   },
   {
