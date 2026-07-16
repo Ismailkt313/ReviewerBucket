@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, ChevronDown } from "lucide-react";
-import { useViewportHeight } from "@/app/hooks/useViewportHeight";
+import { useVisualViewport } from "@/app/hooks/useVisualViewport";
 import Header from "./Header";
 import ReviewerRatingSection from "./ReviewerRatingSection";
 import StudentExperiencesFeed from "./StudentExperiencesFeed";
@@ -36,7 +36,7 @@ export default function ReviewerDetailWrapper({
 }: ReviewerDetailWrapperProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const viewportHeight = useViewportHeight();
+  useVisualViewport();
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -64,8 +64,11 @@ export default function ReviewerDetailWrapper({
   return (
     <div
       id="detail-page-container"
-      className="flex flex-col overflow-hidden bg-background text-foreground w-full"
-      style={{ height: viewportHeight }}
+      className="fixed top-0 left-0 w-full flex flex-col overflow-hidden bg-background text-foreground"
+      style={{
+        height: "var(--visual-viewport-height, 100dvh)",
+        transform: "translateY(var(--visual-viewport-offset-top, 0px))"
+      }}
     >
       <div className="flex-shrink-0">
         <Header />
