@@ -36,20 +36,20 @@ export default function ReviewerCard({ reviewer, stats }: ReviewerCardProps) {
     <Link
       href={`/reviewers/${reviewer.slug}`}
       role="listitem"
-      className="group flex flex-col justify-between gap-3 rounded-xl border border-border bg-surface p-4 shadow-xs transition-all duration-150 hover:shadow-sm hover:-translate-y-0.5 hover:border-neutral-400 dark:hover:border-neutral-500 focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
+      className="group flex flex-col justify-between gap-5 rounded-2xl border border-border bg-surface p-5 md:p-6 min-h-[230px] md:min-h-[260px] shadow-xs transition-all duration-200 hover:scale-[1.01] hover:shadow-md hover:border-neutral-400 dark:hover:border-neutral-500 focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
     >
-      <div className="space-y-2">
+      <div className="space-y-3.5">
         {/* Header Info */}
-        <div className="flex items-start justify-between gap-2.5">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-neutral-200 to-neutral-350 dark:from-neutral-800 dark:to-neutral-700 flex items-center justify-center text-xs font-bold text-secondary shadow-xs select-none flex-shrink-0">
+        <div className="flex items-start justify-between gap-3 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-[44px] h-[44px] rounded-full bg-gradient-to-tr from-neutral-200 to-neutral-350 dark:from-neutral-800 dark:to-neutral-700 flex items-center justify-center text-sm md:text-base font-bold text-secondary shadow-xs select-none flex-shrink-0">
               {avatarChar}
             </div>
             <div className="min-w-0">
-              <h3 className="truncate text-sm font-bold text-foreground group-hover:text-accent transition-colors leading-tight">
+              <h3 className="truncate text-[17px] md:text-[23px] font-bold text-foreground group-hover:text-accent transition-colors leading-tight tracking-tight">
                 {displayName}
               </h3>
-              <span className="inline-block font-mono text-[9px] font-semibold text-secondary leading-none mt-0.5">
+              <span className="inline-block font-mono text-[13px] md:text-[16px] font-semibold text-secondary leading-none mt-1 tracking-wide">
                 {reviewer.code}
               </span>
             </div>
@@ -57,19 +57,19 @@ export default function ReviewerCard({ reviewer, stats }: ReviewerCardProps) {
         </div>
 
         {/* Rating and Experience Summary */}
-        <div className="flex items-center gap-1.5 text-[11px] text-secondary font-medium">
+        <div className="flex items-center gap-2 text-[15px] md:text-[17px] text-secondary font-semibold pt-0.5 tracking-tight leading-normal">
           {ratingCount > 0 ? (
             <>
-              <div className="flex items-center gap-0.5 text-amber-500">
-                <Star className="w-3 h-3 fill-current" />
-                <span className="font-bold text-foreground text-[11px]">{rating.toFixed(1)}</span>
+              <div className="flex items-center gap-1 text-amber-500">
+                <Star className="w-4 h-4 fill-current align-middle" />
+                <span className="font-bold text-foreground text-[15px] md:text-[18px] align-middle">{rating.toFixed(1)}</span>
               </div>
-              <span className="text-muted text-[9px]">•</span>
+              <span className="text-muted text-[13px]">•</span>
             </>
           ) : (
             <>
-              <span className="text-muted text-[11px]">Unrated</span>
-              <span className="text-muted text-[9px]">•</span>
+              <span className="text-muted text-[14px] md:text-[16px]">Unrated</span>
+              <span className="text-muted text-[13px]">•</span>
             </>
           )}
           <span>{experiencesText}</span>
@@ -77,17 +77,17 @@ export default function ReviewerCard({ reviewer, stats }: ReviewerCardProps) {
 
         {/* Stack Chips */}
         {reviewer.stacks.length > 0 && (
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1.5 pt-0.5">
             {reviewer.stacks.slice(0, 3).map((stack) => (
               <span
                 key={stack}
-                className="inline-flex items-center rounded-md bg-neutral-50 dark:bg-neutral-900 border border-border/50 px-1.5 py-0.5 text-[9px] font-mono font-medium text-secondary"
+                className="inline-flex items-center rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-border/50 px-2.5 py-0.5 text-[12px] md:text-[15px] font-mono font-medium text-secondary tracking-tight"
               >
                 {stack}
               </span>
             ))}
             {reviewer.stacks.length > 3 && (
-              <span className="inline-flex items-center rounded-md bg-neutral-50 dark:bg-neutral-900 border border-border/50 px-1.5 py-0.5 text-[9px] font-mono font-medium text-secondary">
+              <span className="inline-flex items-center rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-border/50 px-2 py-0.5 text-[12px] md:text-[15px] font-mono font-medium text-secondary">
                 +{reviewer.stacks.length - 3}
               </span>
             )}
@@ -96,9 +96,9 @@ export default function ReviewerCard({ reviewer, stats }: ReviewerCardProps) {
       </div>
 
       {/* CTA Button */}
-      <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[11px] text-muted group-hover:text-accent font-bold transition-colors">
+      <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[15px] md:text-[17px] text-muted group-hover:text-accent font-bold transition-colors tracking-tight leading-normal">
         <span>View Experiences</span>
-        <ArrowRight className="w-3 h-3 transform group-hover:translate-x-0.5 transition-transform" />
+        <ArrowRight className="w-4 h-4 transform group-hover:translate-x-0.5 transition-transform" />
       </div>
     </Link>
   );

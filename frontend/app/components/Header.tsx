@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MessageCircleMore, Plus } from "lucide-react";
+import { MessageCircleMore } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 
 export default function Header() {
@@ -26,14 +26,6 @@ export default function Header() {
             className="flex h-9 w-9 items-center justify-center rounded-xl text-secondary hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-focus"
           >
             <MessageCircleMore className="h-5 w-5" />
-          </Link>
-
-          <Link
-            href="/?add=true"
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-accent text-background px-3 text-xs font-bold transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Add Reviewer</span>
           </Link>
 
           <ThemeToggle />
