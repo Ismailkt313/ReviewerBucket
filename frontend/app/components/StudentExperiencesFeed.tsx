@@ -237,7 +237,7 @@ export default function StudentExperiencesFeed({
 
   return (
     <div className="flex flex-col flex-1 min-h-0 border border-border bg-surface rounded-2xl overflow-clip relative">
-      <div className="px-4 py-3 border-b border-border/60 bg-neutral-50/50 dark:bg-neutral-900/30 flex items-center justify-between flex-shrink-0">
+      <div className="px-3 py-2 md:px-4 md:py-3 border-b border-border/60 bg-neutral-50/50 dark:bg-neutral-900/30 flex items-center justify-between flex-shrink-0">
         <h2 className="text-xs font-extrabold tracking-wider uppercase text-secondary">
           Student Experiences
         </h2>
@@ -333,7 +333,7 @@ export default function StudentExperiencesFeed({
         </button>
       )}
 
-      <div className="border-t border-border bg-surface p-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))] flex flex-col gap-2 relative flex-shrink-0">
+      <div className="border-t border-border/60 bg-surface/95 backdrop-blur-xs px-3 pt-2 pb-[calc(8px+env(safe-area-inset-bottom,0px))] flex flex-col gap-1.5 relative flex-shrink-0 shadow-[0_-1px_3px_rgba(0,0,0,0.04)]">
         <form onSubmit={handleSubmit} className="flex gap-2 items-center">
           <label htmlFor="feed-input" className="sr-only">
             Share your experience
@@ -351,7 +351,7 @@ export default function StudentExperiencesFeed({
             placeholder="Share your experience..."
             maxLength={1000}
             rows={1}
-            className="flex-1 rounded-2xl border border-border bg-background px-3.5 py-2.5 text-[16px] text-foreground focus:border-neutral-400 focus:ring-2 focus:ring-focus/15 focus:outline-none dark:focus:border-neutral-500 resize-none min-h-[44px] max-h-[120px] overflow-y-auto transition-[height] duration-150 ease-out"
+            className="flex-1 rounded-2xl border border-border/60 bg-background px-3.5 py-2 text-[16px] text-foreground placeholder:text-muted focus:border-neutral-400 focus:ring-2 focus:ring-focus/15 focus:outline-none dark:focus:border-neutral-500 resize-none min-h-[40px] max-h-[120px] overflow-y-auto transition-[height] duration-150 ease-out"
           />
 
           <button
@@ -359,7 +359,7 @@ export default function StudentExperiencesFeed({
             disabled={isSubmitting || !inputText.trim()}
             onMouseDown={handleSendMouseDown}
             onTouchStart={handleSendTouchStart}
-            className="flex-shrink-0 w-[44px] h-[44px] rounded-full bg-accent text-background flex items-center justify-center transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
+            className="flex-shrink-0 w-10 h-10 rounded-full bg-accent text-background flex items-center justify-center transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
             aria-label="Send experience"
           >
             {isSubmitting ? (

@@ -73,10 +73,10 @@ export default function ReviewerDetailWrapper({
       <div className="flex-shrink-0">
         <Header />
       </div>
-      <div className="mx-auto max-w-3xl px-4 py-3 flex-1 min-h-0 flex flex-col w-full relative">
+      <div className="mx-auto max-w-3xl px-4 py-1 md:py-3 flex-1 min-h-0 flex flex-col w-full relative">
         <div
           onClick={() => isMobile && setIsCollapsed(prev => !prev)}
-          className="md:hidden flex-shrink-0 flex items-center gap-3 px-4 h-14 border border-border bg-surface rounded-xl cursor-pointer select-none mb-3"
+          className="md:hidden flex-shrink-0 flex items-center gap-3 px-4 h-12 border border-border bg-surface rounded-xl cursor-pointer select-none mb-1"
         >
           <Link
             href="/"
