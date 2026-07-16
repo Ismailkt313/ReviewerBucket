@@ -64,7 +64,7 @@ export default function ReviewerDetailWrapper({
   return (
     <div
       id="detail-page-container"
-      className="fixed inset-0 flex flex-col overflow-hidden bg-background text-foreground w-full"
+      className="flex flex-col overflow-hidden bg-background text-foreground w-full"
       style={{ height: viewportHeight }}
     >
       <div className="flex-shrink-0">

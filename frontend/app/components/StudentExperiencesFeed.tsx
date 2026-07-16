@@ -233,6 +233,16 @@ export default function StudentExperiencesFeed({
     }
   };
 
+  const handleSendMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    handleSubmit();
+  };
+
+  const handleSendTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault();
+    handleSubmit();
+  };
+
   return (
     <div className="flex flex-col flex-1 h-full min-h-0 border border-border bg-surface rounded-2xl overflow-hidden relative">
       <div className="px-4 py-3 border-b border-border/60 bg-neutral-50/50 dark:bg-neutral-900/30 flex items-center justify-between flex-shrink-0">
@@ -354,6 +364,8 @@ export default function StudentExperiencesFeed({
           <button
             type="submit"
             disabled={isSubmitting || !inputText.trim()}
+            onMouseDown={handleSendMouseDown}
+            onTouchStart={handleSendTouchStart}
             className="w-10 h-10 md:w-auto md:h-auto rounded-full md:rounded-xl bg-accent text-background md:px-4 md:py-2.5 text-xs font-bold transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px] md:min-w-0"
             aria-label="Send experience"
           >
