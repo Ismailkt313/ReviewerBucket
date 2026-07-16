@@ -33,6 +33,10 @@ export const metadata: Metadata = {
     "Brototype reviewer",
     "Brototype review",
   ],
+  icons: {
+    icon: "/reviwerbucketLogo.png",
+    apple: "/reviwerbucketLogo.png",
+  },
   alternates: {
     canonical: "/",
   },
