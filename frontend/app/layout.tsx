@@ -18,6 +18,9 @@ export const metadata: Metadata = {
   title: "Reviewer Bucket | Find Brocamp Reviewer Experiences",
   description:
     "Find honest interview experiences shared by students for Brocamp reviewers. Search reviewers by name, reviewer code or technology stack.",
+  verification: {
+    google: "Fxk4TiHZlWYjCaJb47GBetDpNyY6MUgvVfWDO2QjeMQ",
+  },
   keywords: [
     "Brocamp",
     "Reviewer",
