@@ -48,3 +48,50 @@ export const getReviewerBySlug = async (
     next(error);
   }
 };
+
+export const createReviewer = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { name, code, stacks } = req.body;
+    const reviewer = await reviewerService.createReviewer({ name, code, stacks });
+    res.status(201).json({
+      success: true,
+      data: {
+        id: reviewer._id.toString(),
+        name: reviewer.name,
+        code: reviewer.code,
+        slug: reviewer.slug,
+        stacks: reviewer.stacks
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateReviewer = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { name, code, stacks } = req.body;
+    const reviewer = await reviewerService.updateReviewer(id, { name, code, stacks });
+    res.status(200).json({
+      success: true,
+      data: {
+        id: reviewer._id.toString(),
+        name: reviewer.name,
+        code: reviewer.code,
+        slug: reviewer.slug,
+        stacks: reviewer.stacks
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};

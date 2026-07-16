@@ -5,7 +5,8 @@ const reviewerSchema = new Schema<IReviewerDoc>(
   {
     name: {
       type: String,
-      required: true,
+      required: false,
+      default: "",
       trim: true,
       maxlength: 100
     },

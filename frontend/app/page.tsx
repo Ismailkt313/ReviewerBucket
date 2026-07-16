@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Header from "./components/Header";
 import Hero from "./components/Hero";
 import ReviewerExplorer from "./components/ReviewerExplorer";
@@ -35,7 +36,9 @@ export default async function Home() {
       <Header />
       <main className="flex-1">
         <Hero />
-        <ReviewerExplorer reviewers={realReviewers} />
+        <Suspense fallback={null}>
+          <ReviewerExplorer reviewers={realReviewers} />
+        </Suspense>
         <HowItWorks />
         <About />
         <FAQ />

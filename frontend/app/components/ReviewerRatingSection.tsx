@@ -20,22 +20,23 @@ type ReviewerRatingSectionProps = {
   initialAverageRating: number | null;
   initialRatingCount: number;
   isCollapsed?: boolean;
+  onEditClick?: () => void;
 };
 
 function StarIcon({ filled, className }: { filled: boolean; className?: string }) {
   return (
     <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
       fill={filled ? "currentColor" : "none"}
       stroke="currentColor"
       strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      viewBox="0 0 24 24"
       className={className}
     >
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M11.48 3.499c.196-.399.768-.399.965 0l2.362 4.79 5.284.77c.44.064.617.61.298.92l-3.824 3.727.902 5.26c.075.441-.39.78-.778.572l-4.726-2.485-4.727 2.485c-.389.208-.854-.131-.778-.572l.901-5.26-3.824-3.727c-.319-.31-.143-.856.297-.92l5.284-.77 2.362-4.79z"
+      />
     </svg>
   );
 }
@@ -47,7 +48,8 @@ export default function ReviewerRatingSection({
   reviewerStacks,
   initialAverageRating,
   initialRatingCount,
-  isCollapsed = false
+  isCollapsed = false,
+  onEditClick
 }: ReviewerRatingSectionProps) {
   const [localRating, setLocalRating] = useState<number | undefined>(undefined);
   const [hoverRating, setHoverRating] = useState<number | undefined>(undefined);
@@ -179,7 +181,8 @@ export default function ReviewerRatingSection({
   }
 
   const roundedAvg = averageRating !== null ? Math.round(averageRating) : 0;
-  const avatarChar = reviewerName.charAt(0).toUpperCase();
+  const displayName = reviewerName || "Anonymous Reviewer";
+  const avatarChar = displayName.charAt(0).toUpperCase();
 
   return (
     <>
@@ -199,7 +202,7 @@ export default function ReviewerRatingSection({
 
         <div className="flex items-center justify-center gap-2">
           <h1 className="text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">
-            {reviewerName}
+            {displayName}
           </h1>
           <span className="inline-flex items-center rounded-md border border-border bg-background px-2 py-0.5 font-mono text-xs font-semibold text-secondary">
             {reviewerCode}
@@ -268,6 +271,19 @@ export default function ReviewerRatingSection({
             <p className="text-[11px] text-red-650 dark:text-red-400 font-semibold">{errorMessage}</p>
           )}
         </div>
+
+        {/* Edit Action */}
+        {onEditClick && (
+          <div className="mt-3 pt-3 border-t border-border/50 w-full flex justify-center">
+            <button
+              type="button"
+              onClick={onEditClick}
+              className="inline-flex items-center gap-1.5 text-[11px] font-bold text-muted hover:text-foreground transition-colors min-h-[44px]"
+            >
+              <span>✏️ Suggest an edit</span>
+            </button>
+          </div>
+        )}
       </div>
     </>
   );

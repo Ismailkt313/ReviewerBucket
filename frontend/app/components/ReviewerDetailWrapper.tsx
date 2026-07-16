@@ -7,6 +7,7 @@ import { useVisualViewport } from "@/app/hooks/useVisualViewport";
 import Header from "./Header";
 import ReviewerRatingSection from "./ReviewerRatingSection";
 import StudentExperiencesFeed from "./StudentExperiencesFeed";
+import AddReviewerModal from "./AddReviewerModal";
 
 type ReviewerDetailWrapperProps = {
   reviewer: {
@@ -34,6 +35,8 @@ export default function ReviewerDetailWrapper({
   initialNextCursor,
   initialHasMore
 }: ReviewerDetailWrapperProps) {
+  const [currentReviewer, setCurrentReviewer] = useState(reviewer);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   useVisualViewport();
@@ -88,12 +91,12 @@ export default function ReviewerDetailWrapper({
           </Link>
           <div className="min-w-0 flex-1 flex flex-col justify-center">
             <div className="flex items-center gap-1.5">
-              <span className="text-sm font-bold text-foreground truncate">{reviewer.name}</span>
+              <span className="text-sm font-bold text-foreground truncate">{currentReviewer.name || "Anonymous Reviewer"}</span>
               <span className="inline-flex items-center rounded-md border border-border bg-background px-1.5 py-0.5 font-mono text-[9px] font-semibold text-secondary flex-shrink-0">
-                {reviewer.code}
+                {currentReviewer.code}
               </span>
             </div>
-            <span className="text-[10px] text-muted truncate block">{reviewer.stacks.join(" • ") || "General"}</span>
+            <span className="text-[10px] text-muted truncate block">{currentReviewer.stacks.join(" • ") || "General"}</span>
           </div>
           <div className="text-secondary p-1">
             <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${resolvedCollapsed ? "" : "rotate-180"}`} />
@@ -102,20 +105,21 @@ export default function ReviewerDetailWrapper({
 
         <div className={`transition-all duration-300 ease-in-out origin-top flex-shrink-0 ${resolvedCollapsed ? "max-h-0 opacity-0 -translate-y-4 scale-95 pointer-events-none overflow-hidden pb-0" : "max-h-[350px] opacity-100 translate-y-0 scale-100 pb-4"}`}>
           <ReviewerRatingSection
-            reviewerId={reviewer.id}
-            reviewerName={reviewer.name}
-            reviewerCode={reviewer.code}
-            reviewerStacks={reviewer.stacks || []}
+            reviewerId={currentReviewer.id}
+            reviewerName={currentReviewer.name}
+            reviewerCode={currentReviewer.code}
+            reviewerStacks={currentReviewer.stacks || []}
             initialAverageRating={averageRating}
             initialRatingCount={ratingCount}
             isCollapsed={resolvedCollapsed}
+            onEditClick={() => setIsModalOpen(true)}
           />
         </div>
 
         <div className="flex-1 min-h-0 flex flex-col">
           <StudentExperiencesFeed
-            key={reviewer.id}
-            reviewerId={reviewer.id}
+            key={currentReviewer.id}
+            reviewerId={currentReviewer.id}
             initialExperiences={initialExperiences}
             initialNextCursor={initialNextCursor}
             initialHasMore={initialHasMore}
@@ -123,6 +127,20 @@ export default function ReviewerDetailWrapper({
           />
         </div>
       </div>
+
+      <AddReviewerModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={(updated) => {
+          setCurrentReviewer(updated);
+        }}
+        mode="edit"
+        reviewerId={currentReviewer.id}
+        initialName={currentReviewer.name}
+        initialCode={currentReviewer.code}
+        initialStacks={currentReviewer.stacks}
+        key={`${isModalOpen}-${currentReviewer.name}-${currentReviewer.code}-${currentReviewer.stacks.join(",")}`}
+      />
     </div>
   );
 }
