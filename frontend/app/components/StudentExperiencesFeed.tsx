@@ -278,19 +278,30 @@ export default function StudentExperiencesFeed({
               {experiencesList.map((exp) => (
                 <div
                   key={exp.id}
+                  itemProp="review"
+                  itemScope
+                  itemType="https://schema.org/Review"
                   className="flex gap-2 md:gap-3 items-start text-sm bg-background/40 hover:bg-background/80 p-2 md:p-2.5 rounded-lg md:rounded-xl border border-border/40 transition-colors duration-150 animate-slide-up-fade"
                 >
+                  <meta itemProp="datePublished" content={exp.createdAt} />
                   <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-neutral-100 dark:bg-neutral-850 flex items-center justify-center flex-shrink-0 text-[10px] md:text-xs font-bold text-muted shadow-xs select-none">
                     A
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-foreground text-[11px] md:text-xs">Anonymous Student</span>
+                      <span 
+                        itemProp="author" 
+                        itemScope 
+                        itemType="https://schema.org/Person" 
+                        className="font-bold text-foreground text-[11px] md:text-xs"
+                      >
+                        <span itemProp="name">Anonymous Student</span>
+                      </span>
                       <span className="text-[9px] md:text-[10px] text-muted font-medium">
                         {getRelativeTime(exp.createdAt)}
                       </span>
                     </div>
-                    <p className="mt-0.5 text-xs md:text-sm text-secondary leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                    <p itemProp="reviewBody" className="mt-0.5 text-xs md:text-sm text-secondary leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                       {exp.content}
                     </p>
                   </div>

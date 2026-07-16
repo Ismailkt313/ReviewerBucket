@@ -25,6 +25,13 @@ type ReviewerDetailWrapperProps = {
   }[];
   initialNextCursor: string | null;
   initialHasMore: boolean;
+  relatedReviewers: {
+    id: string;
+    name: string;
+    code: string;
+    slug: string;
+    stacks: string[];
+  }[];
 };
 
 export default function ReviewerDetailWrapper({
@@ -33,7 +40,8 @@ export default function ReviewerDetailWrapper({
   ratingCount,
   initialExperiences,
   initialNextCursor,
-  initialHasMore
+  initialHasMore,
+  relatedReviewers
 }: ReviewerDetailWrapperProps) {
   const [currentReviewer, setCurrentReviewer] = useState(reviewer);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -67,7 +75,7 @@ export default function ReviewerDetailWrapper({
   return (
     <div
       id="detail-page-container"
-      className="fixed top-0 left-0 w-full flex flex-col overflow-hidden bg-background text-foreground"
+      className="fixed top-0 left-0 w-full flex flex-col overflow-hidden bg-background text-foreground animate-in fade-in duration-200"
       style={{
         height: "var(--visual-viewport-height, 100dvh)",
         transform: "translateY(var(--visual-viewport-offset-top, 0px))"
@@ -126,6 +134,26 @@ export default function ReviewerDetailWrapper({
             onCollapsedChange={handleCollapsedChange}
           />
         </div>
+
+        {relatedReviewers && relatedReviewers.length > 0 && (
+          <section className="mt-2 flex-shrink-0 bg-surface border border-border rounded-2xl p-4 select-none mb-1">
+            <h3 className="text-xs font-extrabold tracking-wider uppercase text-secondary mb-2.5">
+              Related Reviewers
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {relatedReviewers.map((r) => (
+                <Link
+                  key={r.id}
+                  href={`/reviewers/${r.slug}`}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-bold text-secondary hover:text-foreground hover:border-neutral-450 dark:hover:border-neutral-550 transition-colors"
+                >
+                  <span>{r.name}</span>
+                  <span className="font-mono text-[9px] opacity-70">({r.code})</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
 
       <AddReviewerModal

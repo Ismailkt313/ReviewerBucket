@@ -6,38 +6,58 @@ const faqs = [
   {
     question: "What is Reviewer Bucket?",
     answer:
-      "Reviewer Bucket is a simple reviewer finder created to help students identify reviewers using the reviewer codes shown during reviews.",
+      "Reviewer Bucket is an independent, community-driven reviewer directory and finder created to help Brocamp and Brototype students identify reviewers and prepare for their technical assessments.",
   },
   {
     question: "Who is Reviewer Bucket for?",
     answer:
-      "It is designed specifically for Brocamp and Brototype students who want to quickly look up and identify their reviewer.",
+      "It is designed specifically for Brocamp and Brototype students who want to quickly look up and identify their reviewer, read interview experiences, and share feedback.",
   },
   {
-    question: "What is a reviewer code?",
+    question: "How do I find my Brocamp or Brototype reviewer?",
     answer:
-      "A reviewer code (such as BR 64, BR 54, or AS 33) is the unique identifier shown on screen during your review to designate the reviewer.",
+      "Enter the reviewer's name or code (e.g., BR64) in the search field on the landing page. The matching reviewer card will display instantly, linking to their detailed profile.",
   },
   {
-    question: "How do I find a reviewer by code?",
+    question: "How are experiences collected?",
     answer:
-      "Enter the code into the search field on the landing page. The matching reviewer will be instantly filtered and displayed.",
+      "Interview experiences and ratings are shared anonymously by Brocamp and Brototype students who have recently completed their reviews, exams, or assessments.",
+  },
+  {
+    question: "Can anyone add a reviewer?",
+    answer:
+      "Yes, if a reviewer is not yet listed, any student can submit a reviewer's name and code to the directory so other students can start sharing their experiences.",
+  },
+  {
+    question: "Can anyone share an interview experience?",
+    answer:
+      "Yes. Any student can anonymously post their interview questions, review experiences, and ratings for any reviewer in our directory.",
+  },
+  {
+    question: "How are ratings calculated?",
+    answer:
+      "Reviewer ratings are calculated as an average of student-submitted feedback on criteria such as communication, helpfulness, and technical assessment style.",
+  },
+  {
+    question: "Can experiences be edited?",
+    answer:
+      "Once an interview experience is submitted, it is reviewed for compliance and spam prevention, after which it cannot be directly edited by users to maintain the platform's authenticity.",
+  },
+  {
+    question: "How do I prepare for a Brocamp technical interview or Brototype assessment?",
+    answer:
+      "You can search for your assigned reviewer by code (e.g. BR64) or name on Reviewer Bucket. Read their profile to understand their core stacks, common questions, assessment style, and prepare accordingly.",
+  },
+  {
+    question: "What is the Reviewer Bucket community?",
+    answer:
+      "It is an open space where students share real-time discussions, tips, and insights about upcoming viva evaluations, practical assessments, and mock interviews.",
   },
   {
     question: "Can I search BR64 without a space?",
     answer:
       "Yes. The search is case-insensitive and automatically ignores spacing, so searching for 'BR64', 'br 64', or '64' will all locate the same reviewer.",
-  },
-  {
-    question: "Can I search by reviewer name?",
-    answer:
-      "Yes. You can enter the reviewer's full or partial name in the search box to find their reviewer code.",
-  },
-  {
-    question: "Is Reviewer Bucket an official Brocamp or Brototype platform?",
-    answer:
-      "No. Reviewer Bucket is an independent, student-built utility. It is not an official Brocamp or Brototype platform and has no official affiliation with either program.",
-  },
+  }
 ];
 
 export default function FAQ() {

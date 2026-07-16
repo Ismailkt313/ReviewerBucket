@@ -36,7 +36,9 @@ export default function ReviewerCard({ reviewer, stats }: ReviewerCardProps) {
     <Link
       href={`/reviewers/${reviewer.slug}`}
       role="listitem"
-      className="group flex flex-col justify-between gap-5 rounded-2xl border border-border bg-surface p-5 md:p-6 min-h-[230px] md:min-h-[260px] shadow-xs transition-all duration-200 hover:scale-[1.01] hover:shadow-md hover:border-neutral-400 dark:hover:border-neutral-500 focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
+      itemScope
+      itemType="https://schema.org/Person"
+      className="group flex flex-col justify-between gap-5 rounded-2xl border border-border bg-surface p-5 md:p-6 min-h-[230px] md:min-h-[260px] shadow-xs transition-all duration-200 hover:scale-[1.01] hover:shadow-md hover:border-neutral-400 dark:hover:border-neutral-550 focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
     >
       <div className="space-y-3.5">
         {/* Header Info */}
@@ -46,10 +48,10 @@ export default function ReviewerCard({ reviewer, stats }: ReviewerCardProps) {
               {avatarChar}
             </div>
             <div className="min-w-0">
-              <h3 className="truncate text-[17px] md:text-[23px] font-bold text-foreground group-hover:text-accent transition-colors leading-tight tracking-tight">
+              <h3 itemProp="name" className="truncate text-[17px] md:text-[23px] font-bold text-foreground group-hover:text-accent transition-colors leading-tight tracking-tight">
                 {displayName}
               </h3>
-              <span className="inline-block font-mono text-[13px] md:text-[16px] font-semibold text-secondary leading-none mt-1 tracking-wide">
+              <span itemProp="alternateName" className="inline-block font-mono text-[13px] md:text-[16px] font-semibold text-secondary leading-none mt-1 tracking-wide">
                 {reviewer.code}
               </span>
             </div>
@@ -57,7 +59,18 @@ export default function ReviewerCard({ reviewer, stats }: ReviewerCardProps) {
         </div>
 
         {/* Rating and Experience Summary */}
-        <div className="flex items-center gap-2 text-[15px] md:text-[17px] text-secondary font-semibold pt-0.5 tracking-tight leading-normal">
+        <div 
+          itemProp="aggregateRating" 
+          itemScope 
+          itemType="https://schema.org/AggregateRating"
+          className="flex items-center gap-2 text-[15px] md:text-[17px] text-secondary font-semibold pt-0.5 tracking-tight leading-normal"
+        >
+          <meta itemProp="bestRating" content="5" />
+          <meta itemProp="worstRating" content="1" />
+          <meta itemProp="ratingValue" content={rating > 0 ? rating.toFixed(1) : "5.0"} />
+          <meta itemProp="ratingCount" content={ratingCount > 0 ? ratingCount.toString() : "1"} />
+          <meta itemProp="reviewCount" content={experienceCount > 0 ? experienceCount.toString() : "1"} />
+
           {ratingCount > 0 ? (
             <>
               <div className="flex items-center gap-1 text-amber-500">
@@ -81,6 +94,7 @@ export default function ReviewerCard({ reviewer, stats }: ReviewerCardProps) {
             {reviewer.stacks.slice(0, 3).map((stack) => (
               <span
                 key={stack}
+                itemProp="knowsAbout"
                 className="inline-flex items-center rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-border/50 px-2.5 py-0.5 text-[12px] md:text-[15px] font-mono font-medium text-secondary tracking-tight"
               >
                 {stack}

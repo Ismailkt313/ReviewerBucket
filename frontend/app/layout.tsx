@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import StructuredData from "./components/StructuredData";
 import { siteConfig } from "./config";
 
 const geistSans = Geist({
@@ -16,26 +15,36 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
-  title: "Reviewer Bucket | Find Brocamp & Brototype Reviewers",
+  title: "Reviewer Bucket | Find Brocamp Reviewer Experiences",
   description:
-    "Reviewer Bucket helps Brocamp and Brototype students find reviewers by reviewer code or name. Search codes such as BR 64 and quickly identify the matching reviewer.",
+    "Find honest interview experiences shared by students for Brocamp reviewers. Search reviewers by name, reviewer code or technology stack.",
   keywords: [
+    "Brocamp",
+    "Reviewer",
+    "Interview Experience",
+    "MERN",
+    "Flutter",
+    "AI ML",
+    "Python",
+    "QA",
+    "Media",
+    "Unity",
+    "Unreal",
+    "Data Science",
+    "Brototype",
     "Reviewer Bucket",
-    "reviewer finder",
-    "reviewer directory",
-    "reviewer code",
-    "reviewer code lookup",
-    "reviewer code search",
-    "find reviewer by code",
-    "search reviewer by code",
-    "Brocamp reviewer",
-    "Brocamp review",
-    "Brototype reviewer",
-    "Brototype review",
+    "Brocamp Reviewer Finder",
+    "Reviewer Code Search",
+    "Technical Assessment",
+    "Reviewer Rating",
   ],
   icons: {
-    icon: "/reviwerbucketLogo.png",
-    apple: "/reviwerbucketLogo.png",
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
   },
   alternates: {
     canonical: "/",
@@ -53,17 +62,26 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    title: "Reviewer Bucket | Find Brocamp & Brototype Reviewers",
+    title: "Reviewer Bucket | Find Brocamp Reviewer Experiences",
     description:
-      "Reviewer Bucket helps Brocamp and Brototype students find reviewers by reviewer code or name. Search codes such as BR 64 and quickly identify the matching reviewer.",
+      "Find honest interview experiences shared by students for Brocamp reviewers. Search reviewers by name, reviewer code or technology stack.",
     siteName: "Reviewer Bucket",
     url: "/",
+    images: [
+      {
+        url: `${siteConfig.url}/reviwerbucketLogo.png`,
+        width: 1536,
+        height: 1024,
+        alt: "Reviewer Bucket Logo",
+      },
+    ],
   },
   twitter: {
-    card: "summary",
-    title: "Reviewer Bucket | Find Brocamp & Brototype Reviewers",
+    card: "summary_large_image",
+    title: "Reviewer Bucket | Find Brocamp Reviewer Experiences",
     description:
-      "Reviewer Bucket helps Brocamp and Brototype students find reviewers by reviewer code or name. Search codes such as BR 64 and quickly identify the matching reviewer.",
+      "Find honest interview experiences shared by students for Brocamp reviewers. Search reviewers by name, reviewer code or technology stack.",
+    images: [`${siteConfig.url}/reviwerbucketLogo.png`],
   },
 };
 
@@ -72,6 +90,21 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const organizationSchema = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": `${siteConfig.url}/#organization`,
+    "name": "Reviewer Bucket",
+    "url": siteConfig.url,
+    "logo": {
+      "@type": "ImageObject",
+      "url": `${siteConfig.url}/reviwerbucketLogo.png`,
+      "width": "1536",
+      "height": "1024"
+    },
+    "description": "Honest community-driven Brocamp and Brototype reviewer directory and interview experiences.",
+  };
+
   return (
     <html
       lang="en"
@@ -98,10 +131,13 @@ export default function RootLayout({
             `
           }}
         />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+        />
       </head>
       <body className="min-h-dvh flex flex-col bg-background text-foreground antialiased">
         {children}
-        <StructuredData />
       </body>
     </html>
   );
