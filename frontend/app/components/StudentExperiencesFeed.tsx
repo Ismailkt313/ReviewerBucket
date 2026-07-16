@@ -225,14 +225,6 @@ export default function StudentExperiencesFeed({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      if (isSubmitting) return;
-      handleSubmit(e);
-    }
-  };
-
   const handleSendMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     handleSubmit();
@@ -298,7 +290,7 @@ export default function StudentExperiencesFeed({
                         {getRelativeTime(exp.createdAt)}
                       </span>
                     </div>
-                    <p className="mt-0.5 text-xs md:text-sm text-secondary leading-relaxed whitespace-pre-wrap">
+                    <p className="mt-0.5 text-xs md:text-sm text-secondary leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                       {exp.content}
                     </p>
                   </div>
@@ -356,11 +348,10 @@ export default function StudentExperiencesFeed({
               setError("");
               requestAnimationFrame(adjustTextareaHeight);
             }}
-            onKeyDown={handleKeyDown}
             placeholder="Share your experience..."
             maxLength={1000}
             rows={1}
-            className="flex-1 rounded-2xl md:rounded-xl border border-border bg-background px-3.5 py-2.5 text-base md:text-sm text-foreground focus:border-neutral-400 focus:ring-2 focus:ring-focus/15 focus:outline-none dark:focus:border-neutral-500 resize-none min-h-[44px] max-h-[120px] transition-colors duration-150 scrollbar-none"
+            className="flex-1 rounded-2xl border border-border bg-background px-3.5 py-2.5 text-[16px] text-foreground focus:border-neutral-400 focus:ring-2 focus:ring-focus/15 focus:outline-none dark:focus:border-neutral-500 resize-none min-h-[44px] max-h-[120px] overflow-y-auto transition-[height] duration-150 ease-out"
           />
 
           <button
@@ -368,19 +359,16 @@ export default function StudentExperiencesFeed({
             disabled={isSubmitting || !inputText.trim()}
             onMouseDown={handleSendMouseDown}
             onTouchStart={handleSendTouchStart}
-            className="w-10 h-10 md:w-auto md:h-auto rounded-full md:rounded-xl bg-accent text-background md:px-4 md:py-2.5 text-xs font-bold transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px] md:min-w-0"
+            className="flex-shrink-0 w-[44px] h-[44px] rounded-full bg-accent text-background flex items-center justify-center transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
             aria-label="Send experience"
           >
             {isSubmitting ? (
-              <span className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+              <span className="w-4 h-4 border-2 border-background/40 border-t-background rounded-full animate-spin" />
             ) : (
-              <>
-                <svg className="w-4 h-4 md:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="22" y1="2" x2="11" y2="13" />
-                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                </svg>
-                <span className="hidden md:inline">Send</span>
-              </>
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13" />
+                <polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
             )}
           </button>
         </form>
