@@ -1,4 +1,4 @@
-const rawSiteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const rawSiteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://reviewerbucket.vercel.app";
 
 export const siteConfig = {
   name: "Reviewer Bucket",
