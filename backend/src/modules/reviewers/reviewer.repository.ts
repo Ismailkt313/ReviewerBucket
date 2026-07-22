@@ -63,9 +63,25 @@ export class ReviewerRepository {
     });
   }
 
-  // Public slug lookup: only APPROVED reviewers
-  async findBySlug(slug: string): Promise<IReviewer | null> {
-    return await ReviewerModel.findOne({ slug, status: "APPROVED" })
+  // Public slug lookup: only APPROVED reviewers (supports slug, ObjectId, or code)
+  async findBySlug(slugOrId: string): Promise<IReviewer | null> {
+    // 1. Check by exact slug match
+    let reviewer = await ReviewerModel.findOne({ slug: slugOrId, status: "APPROVED" })
+      .select({ name: 1, code: 1, slug: 1, stacks: 1, status: 1 })
+      .lean<IReviewer | null>();
+    if (reviewer) return reviewer;
+
+    // 2. If slugOrId is a 24-character ObjectId string, check by _id
+    if (/^[0-9a-fA-F]{24}$/.test(slugOrId)) {
+      reviewer = await ReviewerModel.findOne({ _id: slugOrId, status: "APPROVED" })
+        .select({ name: 1, code: 1, slug: 1, stacks: 1, status: 1 })
+        .lean<IReviewer | null>();
+      if (reviewer) return reviewer;
+    }
+
+    // 3. Fallback: check by normalized reviewer code
+    const normalizedCode = slugOrId.replace(/[\s-]/g, "").toUpperCase();
+    return await ReviewerModel.findOne({ code: normalizedCode, status: "APPROVED" })
       .select({ name: 1, code: 1, slug: 1, stacks: 1, status: 1 })
       .lean<IReviewer | null>();
   }

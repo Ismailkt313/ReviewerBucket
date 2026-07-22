@@ -13,5 +13,6 @@ const notificationSchema = new Schema<INotificationDoc>({
 });
 
 notificationSchema.index({ createdAt: -1 });
+notificationSchema.index({ reviewerId: 1 });
 
 export const NotificationModel = model<INotificationDoc>("Notification", notificationSchema);

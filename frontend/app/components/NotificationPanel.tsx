@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, MessageSquare, MessageCircleMore, UserCheck, RefreshCw, Loader2 } from "lucide-react";
 import { useNotifications, getRelativeTime, NotificationItem } from "../hooks/useNotifications";
+import { getApiUrl } from "../utils/api";
 
 export default function NotificationPanel() {
   const [isOpen, setIsOpen] = useState(false);
@@ -48,15 +49,33 @@ export default function NotificationPanel() {
     setLoadingNotificationId(n.id);
 
     try {
-      // 1. Navigate to destination page first
-      if (n.reviewerSlug) {
+      // 1. Resolve canonical reviewer slug dynamically using immutable reviewerId (or fallback to stored reviewerSlug)
+      let resolvedSlug: string | undefined = n.reviewerSlug;
+      const lookupIdentifier = n.reviewerId || n.reviewerSlug;
+
+      if (lookupIdentifier) {
+        try {
+          const res = await fetch(getApiUrl(`/api/reviewers/${lookupIdentifier}`), { cache: "no-store" });
+          if (res.ok) {
+            const json = await res.json();
+            if (json && json.data && json.data.slug) {
+              resolvedSlug = json.data.slug;
+            }
+          }
+        } catch {
+          // Fallback to stored reviewerSlug
+        }
+      }
+
+      // 2. Navigate to destination page using the resolved latest slug
+      if (resolvedSlug) {
         const url = n.experienceId
-          ? `/reviewers/${n.reviewerSlug}?experienceId=${n.experienceId}`
-          : `/reviewers/${n.reviewerSlug}`;
+          ? `/reviewers/${resolvedSlug}?experienceId=${n.experienceId}`
+          : `/reviewers/${resolvedSlug}`;
         router.push(url);
       }
 
-      // 2. Mark ONLY that specific notification as read after navigation is initiated
+      // 3. Mark ONLY that specific notification as read after navigation is initiated
       if (!n.isRead) {
         const success = await markSingleAsRead(n.id);
         if (!success) {
@@ -64,7 +83,7 @@ export default function NotificationPanel() {
         }
       }
 
-      // 3. Close panel
+      // 4. Close panel
       setIsOpen(false);
     } catch (err) {
       console.error("Navigation error:", err);
