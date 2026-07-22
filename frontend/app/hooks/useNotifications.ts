@@ -57,14 +57,17 @@ export function useNotifications() {
     }
   }, []);
 
-  const markAllAsRead = useCallback(async () => {
+  const markAllAsRead = useCallback(async (): Promise<boolean> => {
+    const prevNotifications = notifications;
+    const prevUnreadCount = unreadCount;
+
     // Optimistic UI update
     setUnreadCount(0);
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
 
     try {
       const clientId = getAnonymousClientId();
-      await fetch(getApiUrl("/api/notifications/read"), {
+      const res = await fetch(getApiUrl("/api/notifications/read"), {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -72,28 +75,43 @@ export function useNotifications() {
         },
         body: JSON.stringify({ anonymousClientId: clientId })
       });
+
+      if (!res.ok) {
+        throw new Error("Failed to mark notifications as read on server");
+      }
+      return true;
     } catch (err) {
       console.error("Failed to mark notifications as read:", err);
+      // Rollback optimistic update on error
+      setNotifications(prevNotifications);
+      setUnreadCount(prevUnreadCount);
+      return false;
     }
-  }, []);
+  }, [notifications, unreadCount]);
 
-  const markSingleAsRead = useCallback(async (id: string) => {
+  const markSingleAsRead = useCallback(async (id: string): Promise<boolean> => {
+    const target = notifications.find((n) => n.id === id);
+    if (!target || target.isRead) {
+      return true;
+    }
+
+    const prevNotifications = notifications;
+    const prevUnreadCount = unreadCount;
+
     // Optimistic UI update
     setNotifications((prev) =>
       prev.map((n) => {
         if (n.id === id) {
-          if (!n.isRead) {
-            setUnreadCount((count) => Math.max(0, count - 1));
-          }
           return { ...n, isRead: true };
         }
         return n;
       })
     );
+    setUnreadCount((count) => Math.max(0, count - 1));
 
     try {
       const clientId = getAnonymousClientId();
-      await fetch(getApiUrl(`/api/notifications/${id}/read`), {
+      const res = await fetch(getApiUrl(`/api/notifications/${id}/read`), {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -101,10 +119,19 @@ export function useNotifications() {
         },
         body: JSON.stringify({ anonymousClientId: clientId })
       });
+
+      if (!res.ok) {
+        throw new Error("Failed to mark notification as read on server");
+      }
+      return true;
     } catch (err) {
       console.error(`Failed to mark notification ${id} as read:`, err);
+      // Rollback optimistic update on error
+      setNotifications(prevNotifications);
+      setUnreadCount(prevUnreadCount);
+      return false;
     }
-  }, []);
+  }, [notifications, unreadCount]);
 
   const markContentAsRead = useCallback(async (reviewerId?: string, experienceIds?: string[]) => {
     try {

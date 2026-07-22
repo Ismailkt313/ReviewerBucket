@@ -2,21 +2,18 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, MessageSquare, MessageCircleMore, UserCheck, RefreshCw } from "lucide-react";
+import { Bell, MessageSquare, MessageCircleMore, UserCheck, RefreshCw, Loader2 } from "lucide-react";
 import { useNotifications, getRelativeTime, NotificationItem } from "../hooks/useNotifications";
 
 export default function NotificationPanel() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isMarkingAll, setIsMarkingAll] = useState(false);
+  const [loadingNotificationId, setLoadingNotificationId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
   const router = useRouter();
   const { notifications, unreadCount, markAllAsRead, markSingleAsRead } = useNotifications();
   const panelRef = useRef<HTMLDivElement>(null);
-
-  // Mark all as read when opening the panel
-  useEffect(() => {
-    if (isOpen && unreadCount > 0) {
-      markAllAsRead();
-    }
-  }, [isOpen, unreadCount, markAllAsRead]);
 
   // Close panel on clicking outside
   useEffect(() => {
@@ -33,19 +30,47 @@ export default function NotificationPanel() {
     };
   }, [isOpen]);
 
+  const handleMarkAllRead = async () => {
+    if (isMarkingAll || unreadCount === 0) return;
+    setIsMarkingAll(true);
+    setActionError(null);
+
+    const success = await markAllAsRead();
+    if (!success) {
+      setActionError("Failed to mark all as read. Please try again.");
+    }
+    setIsMarkingAll(false);
+  };
+
   const handleNotificationClick = async (n: NotificationItem) => {
-    // 1. Mark only this notification as read
-    await markSingleAsRead(n.id);
+    if (loadingNotificationId) return;
+    setActionError(null);
+    setLoadingNotificationId(n.id);
 
-    // 2. Close the panel
-    setIsOpen(false);
+    try {
+      // 1. Navigate to destination page first
+      if (n.reviewerSlug) {
+        const url = n.experienceId
+          ? `/reviewers/${n.reviewerSlug}?experienceId=${n.experienceId}`
+          : `/reviewers/${n.reviewerSlug}`;
+        router.push(url);
+      }
 
-    // 3. Navigate to the related content
-    if (n.reviewerSlug) {
-      const url = n.experienceId
-        ? `/reviewers/${n.reviewerSlug}?experienceId=${n.experienceId}`
-        : `/reviewers/${n.reviewerSlug}`;
-      router.push(url);
+      // 2. Mark ONLY that specific notification as read after navigation is initiated
+      if (!n.isRead) {
+        const success = await markSingleAsRead(n.id);
+        if (!success) {
+          setActionError("Could not update read state.");
+        }
+      }
+
+      // 3. Close panel
+      setIsOpen(false);
+    } catch (err) {
+      console.error("Navigation error:", err);
+      setActionError("Navigation failed.");
+    } finally {
+      setLoadingNotificationId(null);
     }
   };
 
@@ -111,13 +136,21 @@ export default function NotificationPanel() {
             </h3>
             {unreadCount > 0 && (
               <button
-                onClick={markAllAsRead}
-                className="text-[10px] font-bold text-accent hover:underline focus:outline-none"
+                onClick={handleMarkAllRead}
+                disabled={isMarkingAll}
+                className="text-[10px] font-bold text-accent hover:underline focus:outline-none disabled:opacity-50 flex items-center gap-1"
               >
-                Mark all read
+                {isMarkingAll && <Loader2 className="w-3 h-3 animate-spin" />}
+                <span>Mark all read</span>
               </button>
             )}
           </div>
+
+          {actionError && (
+            <div className="px-4 py-1.5 bg-red-500/10 text-red-500 text-[11px] font-medium border-b border-red-500/20 text-center">
+              {actionError}
+            </div>
+          )}
 
           {/* List Area */}
           <div className="flex-1 overflow-y-auto scroll-smooth py-1 divide-y divide-border/40 max-h-[380px]">
@@ -126,7 +159,9 @@ export default function NotificationPanel() {
                 <div
                   key={n.id}
                   onClick={() => handleNotificationClick(n)}
-                  className="flex items-start gap-3 p-3.5 hover:bg-neutral-100/50 dark:hover:bg-neutral-800/40 transition-colors duration-150 relative cursor-pointer"
+                  className={`flex items-start gap-3 p-3.5 hover:bg-neutral-100/50 dark:hover:bg-neutral-800/40 transition-colors duration-150 relative cursor-pointer ${
+                    loadingNotificationId === n.id ? "opacity-60 pointer-events-none" : ""
+                  }`}
                 >
                   {/* Icon */}
                   <div className="flex-shrink-0">{getIcon(n.type)}</div>
