@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { RatingService } from "./rating.service";
-import { cacheService } from "../../utils/cache";
-import { triggerRevalidate } from "../../utils/revalidate";
+import { ReviewerBroadcaster } from "../../socket/reviewer.broadcaster.js";
 
 const ratingService = new RatingService();
 
@@ -15,14 +14,12 @@ export const putRating = async (
     const { anonymousClientId, value } = req.body;
     const updated = await ratingService.submitRating(reviewerId, anonymousClientId, value);
 
-    // Invalidate caches
-    await Promise.all([
-      cacheService.del(`ratings:summary:${reviewerId}`),
-      cacheService.del("reviewers:list")
-    ]);
-
-    // On-demand frontend cache revalidation
-    triggerRevalidate("reviewers");
+    // Fetch updated summary to broadcast
+    const summary = await ratingService.getRatingSummary(reviewerId);
+    ReviewerBroadcaster.broadcastReviewerStatsUpdated(reviewerId, {
+      averageRating: summary.averageRating,
+      ratingCount: summary.ratingCount
+    });
 
     res.status(200).json({
       success: true,
@@ -42,18 +39,7 @@ export const getRatingSummary = async (
 ): Promise<void> => {
   try {
     const { reviewerId } = req.params;
-    const cacheKey = `ratings:summary:${reviewerId}`;
-    const cached = await cacheService.get<any>(cacheKey);
-    if (cached) {
-      res.status(200).json({
-        success: true,
-        data: cached
-      });
-      return;
-    }
-
     const data = await ratingService.getRatingSummary(reviewerId);
-    await cacheService.set(cacheKey, data, 3600); // 1 hour TTL
 
     res.status(200).json({
       success: true,

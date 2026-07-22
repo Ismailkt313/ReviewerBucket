@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getApiUrl } from "@/app/utils/api";
 import { getAnonymousClientId } from "@/app/utils/anonymous-id";
+import { getSocket } from "@/app/utils/socket";
 
 type LocalRating = {
   reviewerId: string;
@@ -61,6 +62,25 @@ export default function ReviewerRatingSection({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    const socket = getSocket();
+    const handleStatsUpdated = (data: { reviewerId: string; stats: any }) => {
+      if (data?.reviewerId === reviewerId && data?.stats) {
+        if (typeof data.stats.averageRating !== "undefined") {
+          setAverageRating(data.stats.averageRating);
+        }
+        if (typeof data.stats.ratingCount !== "undefined") {
+          setRatingCount(data.stats.ratingCount);
+        }
+      }
+    };
+
+    socket.on("reviewer:stats:updated", handleStatsUpdated);
+    return () => {
+      socket.off("reviewer:stats:updated", handleStatsUpdated);
+    };
+  }, [reviewerId]);
+
+  useEffect(() => {
     const timer = setTimeout(() => {
       try {
         const raw = localStorage.getItem("reviewerBucket:ratings");
@@ -98,6 +118,10 @@ export default function ReviewerRatingSection({
 
   const handleRate = async (value: number) => {
     setErrorMessage("");
+    const prevRating = localRating;
+    // Optimistic UI update
+    setLocalRating(value);
+
     try {
       const clientUuid = getAnonymousClientId();
 
@@ -115,8 +139,6 @@ export default function ReviewerRatingSection({
       if (!res.ok) {
         throw new Error("Rating submission failed");
       }
-
-      setLocalRating(value);
 
       try {
         const raw = localStorage.getItem("reviewerBucket:ratings");
@@ -149,7 +171,7 @@ export default function ReviewerRatingSection({
         // Ignore
       }
 
-      const summaryRes = await fetch(getApiUrl(`/api/reviewers/${reviewerId}/rating-summary`));
+      const summaryRes = await fetch(getApiUrl(`/api/reviewers/${reviewerId}/rating-summary`), { cache: "no-store" });
       if (summaryRes.ok) {
         const summaryJson = await summaryRes.json();
         if (summaryJson && summaryJson.data) {
@@ -166,6 +188,7 @@ export default function ReviewerRatingSection({
         setShowNotice(false);
       }, 2000);
     } catch {
+      setLocalRating(prevRating);
       setErrorMessage("Could not submit rating. Please try again.");
     }
   };

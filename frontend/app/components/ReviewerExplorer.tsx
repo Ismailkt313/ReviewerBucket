@@ -8,11 +8,11 @@ import AddReviewerModal from "./AddReviewerModal";
 import { Plus, Search, X, ChevronDown } from "lucide-react";
 import { detectQueryType } from "@/app/utils/queryDetector";
 import { getApiUrl } from "@/app/utils/api";
+import { getSocket } from "@/app/utils/socket";
 
 type ReviewerExplorerProps = {
   reviewers: Reviewer[];
 };
-
 
 const INITIAL_STACKS = ["All", "MERN", "Flutter", "AI/ML", "Python"];
 const MORE_STACKS = [
@@ -72,6 +72,53 @@ export default function ReviewerExplorer({ reviewers: initialReviewers }: Review
   const [selectedStack, setSelectedStack] = useState("All");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+
+  useEffect(() => {
+    setReviewers(initialReviewers);
+  }, [initialReviewers]);
+
+  useEffect(() => {
+    const socket = getSocket();
+
+    const handleApproved = (data: { reviewer: Reviewer }) => {
+      if (!data?.reviewer) return;
+      setReviewers((prev) => {
+        const exists = prev.some((r) => r.id === data.reviewer.id);
+        if (exists) {
+          return prev.map((r) => (r.id === data.reviewer.id ? { ...r, ...data.reviewer } : r));
+        }
+        return [...prev, data.reviewer];
+      });
+    };
+
+    const handleUpdated = (data: { reviewer: Reviewer }) => {
+      if (!data?.reviewer) return;
+      setReviewers((prev) =>
+        prev.map((r) => (r.id === data.reviewer.id ? { ...r, ...data.reviewer } : r))
+      );
+    };
+
+    const handleStatsUpdated = (data: { reviewerId: string; stats: any }) => {
+      if (!data?.reviewerId) return;
+      setReviewers((prev) =>
+        prev.map((r) =>
+          r.id === data.reviewerId
+            ? { ...r, stats: { ...r.stats, ...data.stats } }
+            : r
+        )
+      );
+    };
+
+    socket.on("reviewer:approved", handleApproved);
+    socket.on("reviewer:updated", handleUpdated);
+    socket.on("reviewer:stats:updated", handleStatsUpdated);
+
+    return () => {
+      socket.off("reviewer:approved", handleApproved);
+      socket.off("reviewer:updated", handleUpdated);
+      socket.off("reviewer:stats:updated", handleStatsUpdated);
+    };
+  }, []);
 
   useEffect(() => {
     const handler = setTimeout(() => {

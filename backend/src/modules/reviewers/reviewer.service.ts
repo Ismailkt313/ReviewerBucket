@@ -21,6 +21,14 @@ export class ReviewerService {
     return reviewer;
   }
 
+  async getReviewerById(id: string): Promise<IReviewer> {
+    const reviewer = await this.reviewerRepository.findById(id);
+    if (!reviewer) {
+      throw new AppError(404, "Reviewer not found");
+    }
+    return reviewer;
+  }
+
   async createReviewer(input: {
     name: string;
     code: string;

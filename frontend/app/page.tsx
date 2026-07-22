@@ -12,10 +12,13 @@ import { siteConfig } from "./config";
 import type { Reviewer } from "./data/reviewers";
 import { SpeedInsights } from "@vercel/speed-insights/next"
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function Home() {
   let realReviewers: Reviewer[] = [];
   try {
-    const res = await fetch(getApiUrl("/api/reviewers"), { next: { tags: ["reviewers"] } });
+    const res = await fetch(getApiUrl("/api/reviewers"), { cache: "no-store" });
     if (res.ok) {
       const json = await res.json();
       if (json && Array.isArray(json.data)) {

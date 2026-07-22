@@ -341,6 +341,22 @@ export default function StudentExperiencesFeed({
     setIsSubmitting(true);
     setError("");
 
+    const tempId = `temp-${Date.now()}`;
+    const tempExperience: StudentExperience = {
+      id: tempId,
+      content: trimmed,
+      createdAt: new Date().toISOString()
+    };
+
+    // Optimistic UI update: instantly append experience to list
+    setExperiencesList((prev) => [...prev, tempExperience]);
+    setInputText("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.focus();
+    }
+    shouldScrollToBottomRef.current = true;
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10-second timeout limit
 
@@ -363,14 +379,24 @@ export default function StudentExperiencesFeed({
         throw new Error("Submission failed");
       }
 
-      setInputText("");
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "auto";
-        textareaRef.current.focus();
+      const json = await res.json();
+      if (json && json.data && json.data.id) {
+        const realExperience: StudentExperience = {
+          id: json.data.id,
+          content: json.data.content,
+          createdAt: json.data.createdAt
+        };
+        // Replace temp experience with real experience
+        setExperiencesList((prev) =>
+          prev.map((item) => (item.id === tempId ? realExperience : item))
+        );
       }
-      shouldScrollToBottomRef.current = true;
     } catch (err: any) {
       clearTimeout(timeoutId);
+      // Rollback optimistic update on error
+      setExperiencesList((prev) => prev.filter((item) => item.id !== tempId));
+      setInputText(trimmed);
+
       if (err.name === "AbortError") {
         setError("Request timed out. Please check your connection and try again.");
       } else {

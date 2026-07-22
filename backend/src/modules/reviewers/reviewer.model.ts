@@ -42,5 +42,8 @@ const reviewerSchema = new Schema<IReviewerDoc>(
 );
 
 reviewerSchema.index({ name: 1 });
+reviewerSchema.index({ slug: 1, status: 1 });
+reviewerSchema.index({ code: 1, status: 1 });
+reviewerSchema.index({ status: 1, name: 1 });
 
 export const ReviewerModel = model<IReviewerDoc>("Reviewer", reviewerSchema);

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { ReviewerService } from "./reviewer.service";
 import { ReviewerUpdateRequestService } from "./reviewer-update-request.service";
-import { cacheService } from "../../utils/cache";
+import { ReviewerBroadcaster } from "../../socket/reviewer.broadcaster.js";
 
 const reviewerService = new ReviewerService();
 const updateRequestService = new ReviewerUpdateRequestService();
@@ -12,16 +12,6 @@ export const getAllReviewers = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const cacheKey = "reviewers:list";
-    const cached = await cacheService.get<any[]>(cacheKey);
-    if (cached) {
-      res.status(200).json({
-        success: true,
-        data: cached
-      });
-      return;
-    }
-
     const reviewers = await reviewerService.getAllReviewersWithStats();
     const data = reviewers.map((r) => ({
       id: r._id.toString(),
@@ -31,8 +21,6 @@ export const getAllReviewers = async (
       stacks: r.stacks,
       stats: r.stats
     }));
-
-    await cacheService.set(cacheKey, data, 300); // 5 minutes TTL
 
     res.status(200).json({
       success: true,
@@ -50,16 +38,6 @@ export const getReviewerBySlug = async (
 ): Promise<void> => {
   try {
     const { slug } = req.params;
-    const cacheKey = `reviewers:slug:${slug}`;
-    const cached = await cacheService.get<any>(cacheKey);
-    if (cached) {
-      res.status(200).json({
-        success: true,
-        data: cached
-      });
-      return;
-    }
-
     const reviewer = await reviewerService.getReviewerBySlug(slug);
     const data = {
       id: reviewer._id.toString(),
@@ -68,8 +46,6 @@ export const getReviewerBySlug = async (
       slug: reviewer.slug,
       stacks: reviewer.stacks
     };
-
-    await cacheService.set(cacheKey, data, 3600); // 1 hour TTL
 
     res.status(200).json({
       success: true,
@@ -177,8 +153,22 @@ export const approveRequest = async (
 
     const reviewer = await reviewerService.approveReviewerRequest(id);
 
-    // Invalidate list cache since a new approved reviewer is active
-    await cacheService.del("reviewers:list");
+    const reviewerData = {
+      id: reviewer._id.toString(),
+      name: reviewer.name,
+      code: reviewer.code,
+      slug: reviewer.slug,
+      stacks: reviewer.stacks,
+      stats: {
+        averageRating: null,
+        ratingCount: 0,
+        experienceCount: 0,
+        lastUpdated: null
+      }
+    };
+
+    // Broadcast reviewer approval to all connected sockets
+    ReviewerBroadcaster.broadcastReviewerApproved(reviewerData);
 
     // Trigger reviewer approved notification asynchronously
     import("../notifications/notification.service.js")
@@ -270,6 +260,22 @@ export const approveUpdateRequest = async (
     const { reviewedBy } = req.body;
 
     const request = await updateRequestService.approveUpdateRequest(id, reviewedBy);
+
+    // Fetch updated reviewer doc to broadcast updated fields
+    try {
+      const updatedReviewer = await reviewerService.getReviewerById(request.reviewerId.toString());
+      if (updatedReviewer) {
+        ReviewerBroadcaster.broadcastReviewerUpdated({
+          id: updatedReviewer._id.toString(),
+          name: updatedReviewer.name,
+          code: updatedReviewer.code,
+          slug: updatedReviewer.slug,
+          stacks: updatedReviewer.stacks
+        });
+      }
+    } catch {
+      // Ignore broadcast fetch error
+    }
 
     res.status(200).json({
       success: true,

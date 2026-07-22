@@ -11,6 +11,9 @@ export interface NotificationServerToClient {
   "notification:read:sync": (data: { unreadCount: number }) => void;
   "community:unread:sync": (data: { unreadCount: number }) => void;
   "community:unread:increment": () => void;
+  "reviewer:approved": (data: { reviewer: any }) => void;
+  "reviewer:updated": (data: { reviewer: any }) => void;
+  "reviewer:stats:updated": (data: { reviewerId: string; stats: any }) => void;
 }
 
 export interface NotificationClientToServer {

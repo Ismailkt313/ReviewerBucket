@@ -1,8 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { ExperienceService } from "./experience.service.js";
-import { cacheService } from "../../utils/cache";
-import { triggerRevalidate } from "../../utils/revalidate";
 import { ReviewerModel } from "../reviewers/reviewer.model.js";
+import { ReviewerBroadcaster } from "../../socket/reviewer.broadcaster.js";
 
 const experienceService = new ExperienceService();
 
@@ -21,15 +20,6 @@ export const postExperience = async (
     const experience = await experienceService.submitExperience(reviewerId, content);
     console.log(`[EXPERIENCE_SUBMISSION] [SUCCESS] Experience created in DB: id=${experience._id.toString()} for reviewerId=${reviewerId}`);
 
-    // Invalidate caches
-    await Promise.all([
-      cacheService.delPattern(`experiences:list:${reviewerId}:*`),
-      cacheService.del("reviewers:list")
-    ]);
-
-    // On-demand frontend cache revalidation
-    triggerRevalidate("reviewers");
-
     try {
       const { ExperienceBroadcaster } = await import("../../socket/experience.broadcaster.js");
       ExperienceBroadcaster.broadcastNewExperience({
@@ -43,10 +33,14 @@ export const postExperience = async (
       console.error(`[EXPERIENCE_SUBMISSION] [ERROR] Failed to broadcast experience id=${experience._id.toString()}:`, err);
     }
 
-    // Trigger experience shared notification asynchronously
+    // Trigger experience shared notification asynchronously and broadcast stats update
     ReviewerModel.findById(reviewerId)
       .then((reviewer) => {
         if (reviewer) {
+          ReviewerBroadcaster.broadcastReviewerStatsUpdated(reviewerId, {
+            lastUpdated: experience.createdAt
+          });
+
           import("../notifications/notification.service.js")
             .then(({ notificationService }) => {
               notificationService.createNotification(
@@ -94,16 +88,6 @@ export const getExperiences = async (
     const { reviewerId } = req.params;
     const { limit, cursor } = req.query as unknown as { limit: number; cursor?: string };
 
-    const cacheKey = `experiences:list:${reviewerId}:limit:${limit}:cursor:${cursor || "none"}`;
-    const cached = await cacheService.get<any>(cacheKey);
-    if (cached) {
-      res.status(200).json({
-        success: true,
-        data: cached
-      });
-      return;
-    }
-
     const result = await experienceService.getExperiences(reviewerId, limit, cursor);
 
     const experiences = result.experiences.map((exp) => ({
@@ -117,8 +101,6 @@ export const getExperiences = async (
       nextCursor: result.nextCursor,
       hasMore: result.hasMore
     };
-
-    await cacheService.set(cacheKey, responseData, 30); // 30 seconds TTL
 
     res.status(200).json({
       success: true,

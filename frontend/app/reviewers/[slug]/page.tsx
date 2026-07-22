@@ -32,10 +32,13 @@ export async function generateStaticParams() {
   return [];
 }
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   try {
-    const res = await fetch(getApiUrl(`/api/reviewers/${slug}`));
+    const res = await fetch(getApiUrl(`/api/reviewers/${slug}`), { cache: "no-store" });
     if (res.ok) {
       const json = await res.json();
       if (json && json.data) {
