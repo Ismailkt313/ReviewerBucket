@@ -2,7 +2,6 @@
 
 import React, { useCallback, useMemo } from "react";
 import Link from "next/link";
-import { Plus, Sparkles, MessageCircle, ArrowRight } from "lucide-react";
 
 const MESSAGES = [
   "Thanks for being part of Reviewer Bucket.",
@@ -35,19 +34,16 @@ export default function AnnouncementBar() {
       {
         label: "Request Reviewer",
         href: "#",
-        icon: Plus,
         onClick: handleRequestReviewer,
       },
       {
         label: "Share Experience",
         href: "#reviewer-search",
-        icon: Sparkles,
         onClick: handleFocusSearch,
       },
       {
         label: "Community Chat",
         href: "/community",
-        icon: MessageCircle,
       },
     ],
     [handleRequestReviewer, handleFocusSearch]
@@ -62,18 +58,18 @@ export default function AnnouncementBar() {
   return (
     <aside
       aria-label="Site announcements"
-      className="announcement-bar-container relative w-full h-9 sm:h-10 border-b border-border/50 bg-surface/80 dark:bg-surface/50 backdrop-blur-md text-[12px] sm:text-[13px] select-none z-40 transition-colors"
+      className="announcement-bar-container relative w-full border-b border-border/50 bg-surface/85 dark:bg-surface/60 backdrop-blur-md text-[12px] sm:text-[13px] select-none z-40 transition-colors"
     >
       {/* Screen Reader Only Accessible Summary */}
       <div className="sr-only">
         Reviewer Bucket announcements: Thanks for being part of Reviewer Bucket. Missing a reviewer? Let the community know. Been through an interview recently? Share it. Questions? The community chat is open.
       </div>
 
-      <div className="mx-auto flex h-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-10 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Left Zone: Live Rotating Informational Marquee Track */}
         <div className="relative flex-1 overflow-hidden h-full flex items-center mr-3 sm:mr-6 min-w-0">
           {/* Live Activity Pulse Indicator */}
-          <div className="flex items-center gap-2 mr-3 flex-shrink-0 z-20">
+          <div className="flex items-center gap-2 mr-2.5 sm:mr-3 flex-shrink-0 z-20">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
@@ -82,7 +78,7 @@ export default function AnnouncementBar() {
 
           {/* Edge Gradient Mask Left */}
           <div
-            className="pointer-events-none absolute left-5 sm:left-6 top-0 bottom-0 w-6 sm:w-12 bg-gradient-to-r from-surface dark:from-surface to-transparent z-10 motion-reduce:hidden"
+            className="pointer-events-none absolute left-4 sm:left-5 top-0 bottom-0 w-6 sm:w-12 bg-gradient-to-r from-surface dark:from-surface to-transparent z-10 motion-reduce:hidden"
             aria-hidden="true"
           />
           {/* Edge Gradient Mask Right */}
@@ -116,18 +112,17 @@ export default function AnnouncementBar() {
           </div>
         </div>
 
-        {/* Right Zone: Fixed Action Cluster (Static, Always-Visible Action Links) */}
-        <nav
-          aria-label="Community actions"
-          className="flex-shrink-0 flex items-center gap-2.5 sm:gap-4 text-[12px] sm:text-[13px]"
-        >
-          {actions.map((action, idx) => {
-            const Icon = action.icon;
-            return (
+        {/* Right Zone: Fixed Action Cluster (Touch-scrollable on Mobile, Static on Desktop) */}
+        <div className="relative flex-shrink-0 max-w-[50%] sm:max-w-none">
+          <nav
+            aria-label="Community actions"
+            className="flex items-center gap-3 sm:gap-4 overflow-x-auto scrollbar-none snap-x snap-mandatory touch-pan-x py-1 [mask-image:linear-gradient(to_right,black_85%,transparent_100%)] sm:[mask-image:none]"
+          >
+            {actions.map((action, idx) => (
               <React.Fragment key={action.label}>
                 {idx > 0 && (
                   <span
-                    className="text-border/60 font-light select-none text-[11px] sm:text-[12px]"
+                    className="text-border/60 font-light select-none text-[11px] sm:text-[12px] flex-shrink-0 hidden sm:inline"
                     aria-hidden="true"
                   >
                     •
@@ -136,25 +131,23 @@ export default function AnnouncementBar() {
                 {action.href.startsWith("/") ? (
                   <Link
                     href={action.href}
-                    className="inline-flex items-center gap-1 font-medium text-foreground hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-4 decoration-border/80 hover:decoration-blue-500 transition-all duration-150 group/act focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus rounded-xs py-0.5 whitespace-nowrap"
+                    className="snap-start flex-shrink-0 min-h-[36px] sm:min-h-[44px] inline-flex items-center font-medium text-foreground hover:underline underline-offset-4 decoration-border/80 hover:decoration-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus rounded-xs px-1 whitespace-nowrap"
                   >
-                    <Icon className="w-3 h-3 text-muted group-hover/act:text-blue-500 transition-colors" />
-                    <span>{action.label}</span>
+                    {action.label}
                   </Link>
                 ) : (
                   <a
                     href={action.href}
                     onClick={action.onClick}
-                    className="inline-flex items-center gap-1 font-medium text-foreground hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-4 decoration-border/80 hover:decoration-blue-500 transition-all duration-150 group/act focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus rounded-xs py-0.5 cursor-pointer whitespace-nowrap"
+                    className="snap-start flex-shrink-0 min-h-[36px] sm:min-h-[44px] inline-flex items-center font-medium text-foreground hover:underline underline-offset-4 decoration-border/80 hover:decoration-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus rounded-xs px-1 cursor-pointer whitespace-nowrap"
                   >
-                    <Icon className="w-3 h-3 text-muted group-hover/act:text-blue-500 transition-colors" />
-                    <span>{action.label}</span>
+                    {action.label}
                   </a>
                 )}
               </React.Fragment>
-            );
-          })}
-        </nav>
+            ))}
+          </nav>
+        </div>
       </div>
     </aside>
   );
