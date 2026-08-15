@@ -129,7 +129,7 @@ export default function NotificationPanel() {
   };
 
   return (
-    <div className="relative" ref={panelRef}>
+    <div className="relative z-50" ref={panelRef}>
       {/* Bell Button */}
       <button
         onClick={() => setIsOpen((prev) => !prev)}
@@ -147,7 +147,7 @@ export default function NotificationPanel() {
 
       {/* Popover Dropdown Panel */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 z-50 w-80 sm:w-96 max-h-[480px] flex flex-col overflow-hidden rounded-2xl border border-border bg-surface/95 backdrop-blur-md shadow-xl animate-in fade-in slide-in-from-top-3 duration-200">
+        <div className="absolute right-0 mt-2 z-[100] w-80 sm:w-96 max-h-[480px] flex flex-col overflow-hidden rounded-2xl border border-border bg-surface/95 backdrop-blur-md shadow-xl animate-in fade-in slide-in-from-top-3 duration-200">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border/80 bg-neutral-50/50 dark:bg-neutral-900/30">
             <h3 className="text-xs font-extrabold uppercase tracking-wider text-secondary">
@@ -213,7 +213,7 @@ export default function NotificationPanel() {
                   All caught up!
                 </h4>
                 <p className="text-[11px] text-muted max-w-[200px]">
-                  No recent platform activity. Notifications automatically expire after 150 minutes.
+                  No recent platform activity. Notifications automatically expire after 2 days.
                 </p>
               </div>
             )}

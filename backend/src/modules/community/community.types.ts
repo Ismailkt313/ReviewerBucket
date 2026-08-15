@@ -50,6 +50,8 @@ export interface PublicCommunityMessage {
   } | null;
   createdAt: string;
   isMine: boolean;
+  /** Present only on messages from other users (isMine: false). Used by the frontend to initiate a private room. */
+  anonymousClientId?: string;
 }
 
 export interface ClientToServerEvents {

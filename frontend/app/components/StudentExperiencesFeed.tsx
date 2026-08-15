@@ -275,6 +275,15 @@ export default function StudentExperiencesFeed({
       const nearBottom = isNearBottom();
       setExperiencesList((prev) => {
         if (prev.some((e) => e.id === newExp.id)) return prev;
+
+        // If an optimistic temp item with matching content exists, replace it
+        const tempIdx = prev.findIndex((e) => e.id.startsWith("temp-") && e.content === newExp.content);
+        if (tempIdx !== -1) {
+          const updated = [...prev];
+          updated[tempIdx] = newExp;
+          return updated;
+        }
+
         return [...prev, newExp];
       });
 
@@ -307,7 +316,11 @@ export default function StudentExperiencesFeed({
         const json = await res.json();
         if (json && json.data) {
           const fetched: StudentExperience[] = json.data.experiences || [];
-          setExperiencesList((prev) => [...fetched, ...prev]);
+          setExperiencesList((prev) => {
+            const existingIds = new Set(prev.map((e) => e.id));
+            const uniqueFetched = fetched.filter((e) => !existingIds.has(e.id));
+            return [...uniqueFetched, ...prev];
+          });
           setNextCursor(json.data.nextCursor || null);
           setHasMore(json.data.hasMore || false);
         }
@@ -386,18 +399,23 @@ export default function StudentExperiencesFeed({
           content: json.data.content,
           createdAt: json.data.createdAt
         };
-        // Replace temp experience with real experience
-        setExperiencesList((prev) =>
-          prev.map((item) => (item.id === tempId ? realExperience : item))
-        );
+        // Replace temp experience with real experience without duplicating if socket already inserted it
+        setExperiencesList((prev) => {
+          const alreadyHasReal = prev.some((item) => item.id === realExperience.id);
+          if (alreadyHasReal) {
+            return prev.filter((item) => item.id !== tempId);
+          }
+          return prev.map((item) => (item.id === tempId ? realExperience : item));
+        });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       clearTimeout(timeoutId);
       // Rollback optimistic update on error
       setExperiencesList((prev) => prev.filter((item) => item.id !== tempId));
       setInputText(trimmed);
 
-      if (err.name === "AbortError") {
+      const isAbort = err instanceof Error && err.name === "AbortError";
+      if (isAbort) {
         setError("Request timed out. Please check your connection and try again.");
       } else {
         setError("Failed to submit experience. Please try again.");

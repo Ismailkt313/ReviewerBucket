@@ -1,64 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { faqs } from "@/app/data/faqs";
 
-const faqs = [
-  {
-    question: "What is Reviewer Bucket?",
-    answer:
-      "Reviewer Bucket is an independent, community-driven reviewer directory and finder created to help Brocamp and Brototype students identify reviewers and prepare for their technical assessments.",
-  },
-  {
-    question: "Who is Reviewer Bucket for?",
-    answer:
-      "It is designed specifically for Brocamp and Brototype students who want to quickly look up and identify their reviewer, read interview experiences, and share feedback.",
-  },
-  {
-    question: "How do I find my Brocamp or Brototype reviewer?",
-    answer:
-      "Enter the reviewer's name or code (e.g., BR64) in the search field on the landing page. The matching reviewer card will display instantly, linking to their detailed profile.",
-  },
-  {
-    question: "How are experiences collected?",
-    answer:
-      "Interview experiences and ratings are shared anonymously by Brocamp and Brototype students who have recently completed their reviews, exams, or assessments.",
-  },
-  {
-    question: "Can anyone add a reviewer?",
-    answer:
-      "Yes, if a reviewer is not yet listed, any student can submit a reviewer's name and code to the directory so other students can start sharing their experiences.",
-  },
-  {
-    question: "Can anyone share an interview experience?",
-    answer:
-      "Yes. Any student can anonymously post their interview questions, review experiences, and ratings for any reviewer in our directory.",
-  },
-  {
-    question: "How are ratings calculated?",
-    answer:
-      "Reviewer ratings are calculated as an average of student-submitted feedback on criteria such as communication, helpfulness, and technical assessment style.",
-  },
-  {
-    question: "Can experiences be edited?",
-    answer:
-      "Once an interview experience is submitted, it is reviewed for compliance and spam prevention, after which it cannot be directly edited by users to maintain the platform's authenticity.",
-  },
-  // {
-  //   question: "How do I prepare for a Brocamp technical interview or Brototype assessment?",
-  //   answer:
-  //     "You can search for your assigned reviewer by code (e.g. BR64) or name on Reviewer Bucket. Read their profile to understand their core stacks, common questions, assessment style, and prepare accordingly.",
-  // },
-  {
-    question: "What is the Reviewer Bucket community?",
-    answer:
-      "It is an open space where students share real-time discussions, tips, and insights about upcoming viva evaluations, practical assessments, and mock interviews.",
-  },
-  {
-    question: "Can I search BR64 without a space?",
-    answer:
-      "Yes. The search is case-insensitive and automatically ignores spacing, so searching for 'BR64', 'br 64', or '64' will all locate the same reviewer.",
-  }
-];
+export { faqs };
 
 export default function FAQ() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
@@ -68,26 +13,35 @@ export default function FAQ() {
   }
 
   return (
-    <section id="faq" className="border-t border-border px-4 py-16 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-3xl">
-        <h2 className="text-xl font-bold tracking-tight text-foreground">
-          Frequently Asked Questions
-        </h2>
-        <dl className="mt-8 divide-y divide-border">
+    <section id="faq" className="border-t border-border px-4 py-16 md:py-20 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-8">
+        <div className="space-y-2 text-center max-w-2xl mx-auto">
+          <span className="text-xs font-mono uppercase tracking-wider text-muted font-medium block">
+            FAQ
+          </span>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+            Frequently Asked Questions
+          </h2>
+          <p className="text-sm text-secondary leading-relaxed pt-1">
+            Find answers about how Reviewer Bucket works, how experiences are shared, and how community participation works.
+          </p>
+        </div>
+
+        <dl className="divide-y divide-border border-y border-border">
           {faqs.map((faq, index) => (
-            <div key={index} className="py-5">
+            <div key={index} className="py-4.5 sm:py-5">
               <dt>
                 <button
                   type="button"
                   onClick={() => toggle(index)}
                   aria-expanded={openIndex === index}
-                  className="flex w-full items-start justify-between gap-4 text-left font-medium text-foreground transition-colors duration-150 hover:text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
+                  className="flex w-full items-center justify-between gap-4 text-left font-medium text-foreground transition-colors duration-150 hover:text-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg"
                 >
-                  <span className="text-sm font-semibold">
+                  <span className="text-sm sm:text-base font-semibold text-foreground">
                     {faq.question}
                   </span>
                   <span
-                    className="ml-auto flex-shrink-0 text-muted transition-transform duration-150 motion-reduce:transition-none"
+                    className="ml-auto flex-shrink-0 text-muted transition-transform duration-200"
                     style={{
                       transform: openIndex === index ? "rotate(45deg)" : "rotate(0deg)",
                     }}
@@ -108,7 +62,7 @@ export default function FAQ() {
                 </button>
               </dt>
               {openIndex === index && (
-                <dd className="mt-3 pr-8 text-sm leading-relaxed text-secondary">
+                <dd className="mt-2.5 sm:mt-3 text-sm leading-relaxed text-secondary animate-in fade-in duration-150 pr-8 max-w-3xl">
                   {faq.answer}
                 </dd>
               )}

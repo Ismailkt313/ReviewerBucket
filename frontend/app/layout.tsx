@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { siteConfig } from "./config";
@@ -118,8 +119,10 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable}`}
       suppressHydrationWarning
     >
-      <head>
-        <script
+      <body className="min-h-dvh flex flex-col bg-background text-foreground antialiased">
+        <Script
+          id="theme-init-script"
+          strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
@@ -138,12 +141,12 @@ export default function RootLayout({
             `
           }}
         />
-        <script
+        <Script
+          id="organization-jsonld-schema"
           type="application/ld+json"
+          strategy="afterInteractive"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
         />
-      </head>
-      <body className="min-h-dvh flex flex-col bg-background text-foreground antialiased">
         {children}
         <SpeedInsights />
       </body>

@@ -22,7 +22,10 @@ function toPublicMessage(msg: InternalCommunityMessage, isMine: boolean): Public
       color: msg.replyTo.color
     } : null,
     createdAt: msg.createdAt,
-    isMine
+    isMine,
+    // Include sender identity for non-own messages so the client can initiate private rooms.
+    // Own messages omit this field since messaging yourself is prevented by the backend.
+    ...(isMine ? {} : { anonymousClientId: msg.anonymousClientId })
   };
 }
 

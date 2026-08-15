@@ -7,6 +7,8 @@ import { getSocket } from "@/app/utils/socket";
 import { useVisualViewport } from "@/app/hooks/useVisualViewport";
 import NotificationPanel from "../components/NotificationPanel";
 import { useCommunityUnread } from "../hooks/useCommunityUnread";
+import { usePrivateUnread } from "../hooks/usePrivateUnread";
+import { createOrGetPrivateRoom } from "../services/private-rooms";
 
 const ACCESSIBLE_COLORS = [
   "#a855f7", // Purple
@@ -49,6 +51,8 @@ type PublicCommunityMessage = {
   } | null;
   createdAt: string;
   isMine: boolean;
+  /** Present on non-own messages. Used to initiate a private room. */
+  anonymousClientId?: string;
 };
 
 type ConnectionStatus = "connecting" | "connected" | "disconnected" | "reconnecting";
@@ -100,11 +104,19 @@ export default function CommunityClient() {
   const [userColor, setUserColor] = useState<string>("#808080");
   const [replyingTo, setReplyingTo] = useState<PublicCommunityMessage | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
-  
+
   // Mobile Swipe-to-reply states
   const [swipingId, setSwipingId] = useState<string | null>(null);
   const [swipeOffset, setSwipeOffset] = useState<number>(0);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  // Private chat states
+  const { totalUnreadCount: privateUnreadCount } = usePrivateUnread();
+  const [privateRoomLoadingId, setPrivateRoomLoadingId] = useState<string | null>(null);
+  const [privateRoomError, setPrivateRoomError] = useState<string>("");
+  // Mobile long-press action sheet
+  const [actionSheetMsg, setActionSheetMsg] = useState<PublicCommunityMessage | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const socketRef = useRef<Socket | null>(null);
 
@@ -116,6 +128,7 @@ export default function CommunityClient() {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setReplyingTo(null);
+        setActionSheetMsg(null);
       }
     };
     window.addEventListener("keydown", handleGlobalKeyDown);
@@ -131,11 +144,31 @@ export default function CommunityClient() {
   }, [markCommunityRead]);
 
   const handleInitiateReply = useCallback((msg: PublicCommunityMessage) => {
+    setActionSheetMsg(null);
     setReplyingTo(msg);
     if (textareaRef.current) {
       textareaRef.current.focus();
     }
   }, []);
+
+  const handleMessagePrivately = useCallback(async (msg: PublicCommunityMessage) => {
+    setActionSheetMsg(null);
+    const targetId = msg.anonymousClientId;
+    if (!targetId) return;
+    if (privateRoomLoadingId) return;
+
+    setPrivateRoomLoadingId(msg.id);
+    setPrivateRoomError("");
+    try {
+      const room = await createOrGetPrivateRoom(targetId);
+      router.push(`/private-chats/${room.id}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Could not start private chat.";
+      setPrivateRoomError(message);
+    } finally {
+      setPrivateRoomLoadingId(null);
+    }
+  }, [privateRoomLoadingId, router]);
 
   const handleScrollToMessage = useCallback((targetId: string) => {
     const el = document.getElementById(`msg-${targetId}`);
@@ -148,16 +181,31 @@ export default function CommunityClient() {
     }
   }, []);
 
-  const handleTouchStartMessage = useCallback((e: React.TouchEvent, msgId: string) => {
+  const handleTouchStartMessage = useCallback((e: React.TouchEvent, msg: PublicCommunityMessage) => {
     touchStartRef.current = {
       x: e.touches[0].clientX,
       y: e.touches[0].clientY
     };
-    setSwipingId(msgId);
+    setSwipingId(msg.id);
     setSwipeOffset(0);
+
+    // Long-press for non-own messages: show action sheet after 500ms
+    if (!msg.isMine && msg.anonymousClientId) {
+      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = setTimeout(() => {
+        setActionSheetMsg(msg);
+        setSwipingId(null);
+        setSwipeOffset(0);
+      }, 500);
+    }
   }, []);
 
   const handleTouchMoveMessage = useCallback((e: React.TouchEvent, msgId: string) => {
+    // Cancel long-press if finger moves
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
     if (!touchStartRef.current || swipingId !== msgId) return;
     const deltaX = e.touches[0].clientX - touchStartRef.current.x;
     const deltaY = e.touches[0].clientY - touchStartRef.current.y;
@@ -171,6 +219,11 @@ export default function CommunityClient() {
   }, [swipingId]);
 
   const handleTouchEndMessage = useCallback((e: React.TouchEvent, msg: PublicCommunityMessage) => {
+    // Cancel long-press timer on touch end
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
     if (swipingId === msg.id) {
       if (swipeOffset >= 50) {
         handleInitiateReply(msg);
@@ -526,7 +579,7 @@ export default function CommunityClient() {
         transform: "translateY(var(--visual-viewport-offset-top, 0px))"
       }}
     >
-      <header className="flex-shrink-0 border-b border-border bg-surface/95 backdrop-blur-xs">
+      <header className="relative z-50 flex-shrink-0 border-b border-border bg-surface/95 backdrop-blur-xs">
         <div className="w-full max-w-[1000px] mx-auto px-4 sm:px-6 md:px-8">
           <div className="flex h-14 items-center gap-3">
             <button
@@ -555,6 +608,24 @@ export default function CommunityClient() {
                   {status === "disconnected" && "Disconnected"}
                 </span>
               )}
+              {/* Private Chats navigation entry point */}
+              <button
+                type="button"
+                onClick={() => router.push("/private-chats")}
+                className="relative flex h-9 w-9 items-center justify-center rounded-xl text-secondary hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-focus min-w-[36px] min-h-[36px]"
+                aria-label={`Private Chats${privateUnreadCount > 0 ? ` (${privateUnreadCount} unread)` : ""}`}
+                title="Private Chats"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                {privateUnreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-bold text-background ring-2 ring-background animate-pulse">
+                    {privateUnreadCount > 9 ? "9+" : privateUnreadCount}
+                  </span>
+                )}
+              </button>
               <NotificationPanel />
             </div>
           </div>
@@ -580,7 +651,7 @@ export default function CommunityClient() {
                 <div
                   key={msg.id}
                   id={`msg-${msg.id}`}
-                  onTouchStart={(e) => handleTouchStartMessage(e, msg.id)}
+                  onTouchStart={(e) => handleTouchStartMessage(e, msg)}
                   onTouchMove={(e) => handleTouchMoveMessage(e, msg.id)}
                   onTouchEnd={(e) => handleTouchEndMessage(e, msg)}
                   className={`flex w-full transition-all duration-500 ${
@@ -635,19 +706,43 @@ export default function CommunityClient() {
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleInitiateReply(msg)}
-                      className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full text-secondary hidden md:flex items-center justify-center min-w-[32px] min-h-[32px] z-10 ${
-                        msg.isMine ? "left-[-40px]" : "right-[-40px]"
+                    {/* Desktop hover actions: reply + message privately */}
+                    <div
+                      className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150 hidden md:flex flex-col gap-1 z-10 ${
+                        msg.isMine ? "left-[-44px]" : "right-[-44px]"
                       }`}
-                      aria-label="Reply to message"
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M9 10L4 15L9 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M20 4V11C20 12.0609 19.5786 13.0783 18.8284 13.8284C18.0783 14.5786 17.0609 15 16 15H4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => handleInitiateReply(msg)}
+                        className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full text-secondary flex items-center justify-center min-w-[32px] min-h-[32px]"
+                        aria-label="Reply to message"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                          <path d="M9 10L4 15L9 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M20 4V11C20 12.0609 19.5786 13.0783 18.8284 13.8284C18.0783 14.5786 17.0609 15 16 15H4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </button>
+                      {!msg.isMine && msg.anonymousClientId && (
+                        <button
+                          type="button"
+                          onClick={() => handleMessagePrivately(msg)}
+                          disabled={privateRoomLoadingId === msg.id}
+                          className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full text-secondary flex items-center justify-center min-w-[32px] min-h-[32px] disabled:opacity-40"
+                          aria-label="Message privately"
+                          title="Message privately"
+                        >
+                          {privateRoomLoadingId === msg.id ? (
+                            <div className="w-3.5 h-3.5 border-2 border-border border-t-accent rounded-full animate-spin" aria-hidden="true" />
+                          ) : (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                              <circle cx="12" cy="7" r="4" />
+                            </svg>
+                          )}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))
@@ -755,9 +850,76 @@ export default function CommunityClient() {
             {error && (
               <p className="text-[11px] text-red-600 dark:text-red-400 font-medium mt-1 px-1">{error}</p>
             )}
+            {privateRoomError && (
+              <p className="text-[11px] text-red-600 dark:text-red-400 font-medium mt-1 px-1" role="alert">
+                {privateRoomError}
+              </p>
+            )}
           </div>
         </div>
       </main>
+
+      {/* Mobile long-press action sheet */}
+      {actionSheetMsg && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40 bg-black/40"
+            onClick={() => setActionSheetMsg(null)}
+            aria-hidden="true"
+          />
+          {/* Sheet */}
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Message actions"
+            className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl bg-surface border-t border-border shadow-xl animate-in slide-in-from-bottom-4 duration-200 pb-[env(safe-area-inset-bottom)]"
+          >
+            <div className="flex flex-col">
+              <div className="flex justify-center py-2">
+                <div className="w-8 h-1 rounded-full bg-border" />
+              </div>
+              <button
+                type="button"
+                onClick={() => handleInitiateReply(actionSheetMsg)}
+                className="flex items-center gap-3 w-full px-5 py-3.5 text-left text-sm font-medium text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M9 10L4 15L9 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M20 4V11C20 12.0609 19.5786 13.0783 18.8284 13.8284C18.0783 14.5786 17.0609 15 16 15H4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Reply
+              </button>
+              {actionSheetMsg.anonymousClientId && (
+                <button
+                  type="button"
+                  disabled={!!privateRoomLoadingId}
+                  onClick={() => handleMessagePrivately(actionSheetMsg)}
+                  className="flex items-center gap-3 w-full px-5 py-3.5 text-left text-sm font-medium text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors disabled:opacity-40"
+                >
+                  {privateRoomLoadingId ? (
+                    <div className="w-4.5 h-4.5 border-2 border-border border-t-accent rounded-full animate-spin" aria-hidden="true" />
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  )}
+                  Message privately
+                </button>
+              )}
+              <div className="h-px bg-border mx-5 my-1" />
+              <button
+                type="button"
+                onClick={() => setActionSheetMsg(null)}
+                className="flex items-center justify-center w-full px-5 py-3.5 text-sm font-medium text-secondary hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
