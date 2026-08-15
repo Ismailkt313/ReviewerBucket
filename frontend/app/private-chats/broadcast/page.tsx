@@ -1,14 +1,12 @@
-"use client";
+import type { Metadata } from "next";
+import PrivateChatsClient from "../PrivateChatsClient";
 
-import { useRouter } from "next/navigation";
-import BroadcastConversationView from "../BroadcastConversationView";
+export const metadata: Metadata = {
+  title: "Official Announcements | Reviewer Bucket",
+  description: "Official Reviewer Bucket announcement channel.",
+  robots: { index: false, follow: false },
+};
 
-export default function MobileBroadcastPage() {
-  const router = useRouter();
-
-  return (
-    <div className="fixed inset-0 w-full h-full bg-background overflow-hidden">
-      <BroadcastConversationView onBack={() => router.push("/private-chats")} />
-    </div>
-  );
+export default function BroadcastPage() {
+  return <PrivateChatsClient initialRoomId="broadcast" />;
 }

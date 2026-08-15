@@ -103,16 +103,27 @@ function SelectConversationPrompt({
 
 // ─── Main client component ────────────────────────────────────────────────────
 
-export default function PrivateChatsClient() {
+interface PrivateChatsClientProps {
+  initialRoomId?: string | null;
+}
+
+export default function PrivateChatsClient({ initialRoomId = null }: PrivateChatsClientProps) {
   const router = useRouter();
   useVisualViewport();
 
   const [clientId, setClientId] = useState<string | null>(null);
   const [hasCheckedSession, setHasCheckedSession] = useState(false);
-  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(initialRoomId);
   const [contactsMap, setContactsMap] = useState<Record<string, ContactIdentityResponse>>({});
   const [showNotice, setShowNotice] = useState(false);
   const [isOpeningDev, setIsOpeningDev] = useState(false);
+
+  // Sync initialRoomId when prop changes
+  useEffect(() => {
+    if (initialRoomId !== undefined) {
+      setSelectedRoomId(initialRoomId);
+    }
+  }, [initialRoomId]);
 
   // Check anonymous session on mount
   useEffect(() => {
@@ -141,24 +152,26 @@ export default function PrivateChatsClient() {
 
   const handleSelectRoom = useCallback(
     (room: IPrivateRoom) => {
-      // On mobile (<768px): navigate to the standalone room page
-      // On desktop: update split-layout state
-      if (typeof window !== "undefined" && window.innerWidth >= 768) {
-        setSelectedRoomId(room.id);
-      } else {
-        router.push(`/private-chats/${room.id}`);
+      setSelectedRoomId(room.id);
+      if (typeof window !== "undefined") {
+        if (window.innerWidth >= 768) {
+          window.history.pushState(null, "", `/private-chats/${room.id}`);
+        } else {
+          router.push(`/private-chats/${room.id}`);
+        }
       }
     },
     [router]
   );
 
   const handleSelectBroadcast = useCallback(() => {
-    // On mobile (<768px): navigate to standalone broadcast page
-    // On desktop: update split-layout state
-    if (typeof window !== "undefined" && window.innerWidth >= 768) {
-      setSelectedRoomId("broadcast");
-    } else {
-      router.push("/private-chats/broadcast");
+    setSelectedRoomId("broadcast");
+    if (typeof window !== "undefined") {
+      if (window.innerWidth >= 768) {
+        window.history.pushState(null, "", "/private-chats/broadcast");
+      } else {
+        router.push("/private-chats/broadcast");
+      }
     }
   }, [router]);
 
@@ -166,15 +179,29 @@ export default function PrivateChatsClient() {
     setIsOpeningDev(true);
     try {
       const room = await createOrGetDeveloperRoom();
-      if (typeof window !== "undefined" && window.innerWidth >= 768) {
-        setSelectedRoomId(room.id);
-      } else {
-        router.push(`/private-chats/${room.id}`);
+      setSelectedRoomId(room.id);
+      if (typeof window !== "undefined") {
+        if (window.innerWidth >= 768) {
+          window.history.pushState(null, "", `/private-chats/${room.id}`);
+        } else {
+          router.push(`/private-chats/${room.id}`);
+        }
       }
     } catch {
       // ignore
     } finally {
       setIsOpeningDev(false);
+    }
+  }, [router]);
+
+  const handleBackFromConversation = useCallback(() => {
+    setSelectedRoomId(null);
+    if (typeof window !== "undefined") {
+      if (window.innerWidth >= 768) {
+        window.history.pushState(null, "", "/private-chats");
+      } else {
+        router.push("/private-chats");
+      }
     }
   }, [router]);
 
@@ -284,7 +311,12 @@ export default function PrivateChatsClient() {
       {/* Main Workspace Layout */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left Column: Conversation List Sidebar */}
-        <div className="flex flex-col w-full md:w-80 lg:w-96 md:border-r border-border overflow-hidden bg-surface">
+        {/* On desktop: ALWAYS visible (md:flex md:w-80 lg:w-96). On mobile: visible when no room selected */}
+        <div
+          className={`${
+            selectedRoomId ? "hidden md:flex" : "flex"
+          } flex-col w-full md:w-80 lg:w-96 md:border-r border-border overflow-hidden bg-surface flex-shrink-0`}
+        >
           {/* Educational notice banner */}
           {showNotice && (
             <div className="m-3 p-3 rounded-xl border border-border/80 bg-surface/90 backdrop-blur-xs text-xs space-y-2 animate-in fade-in duration-200">
@@ -322,15 +354,20 @@ export default function PrivateChatsClient() {
           />
         </div>
 
-        {/* Right Column: Active Conversation Workspace (Desktop) */}
-        <div className="hidden md:flex flex-1 flex-col overflow-hidden bg-background min-w-0">
+        {/* Right Column: Active Conversation Workspace */}
+        {/* On desktop: ALWAYS visible (md:flex flex-1). On mobile: visible when room is selected */}
+        <div
+          className={`${
+            selectedRoomId ? "flex" : "hidden md:flex"
+          } flex-1 flex-col overflow-hidden bg-background min-w-0`}
+        >
           {selectedRoomId === "broadcast" ? (
-            <BroadcastConversationView onBack={() => setSelectedRoomId(null)} />
+            <BroadcastConversationView onBack={handleBackFromConversation} />
           ) : selectedRoomId ? (
             <ConversationView
               key={selectedRoomId}
               roomId={selectedRoomId}
-              onBack={() => setSelectedRoomId(null)}
+              onBack={handleBackFromConversation}
               onContactUpdate={handleContactUpdate}
               initialContactIdentity={undefined}
             />

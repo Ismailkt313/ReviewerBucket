@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import ConversationPageClient from "./ConversationPageClient";
+import PrivateChatsClient from "../PrivateChatsClient";
 
 type Props = {
   params: Promise<{ roomId: string }>;
@@ -8,10 +8,10 @@ type Props = {
 export const metadata: Metadata = {
   title: "Private Chat | Reviewer Bucket",
   description: "Anonymous private conversation.",
-  robots: { index: false, follow: false }
+  robots: { index: false, follow: false },
 };
 
 export default async function ConversationPage({ params }: Props) {
   const { roomId } = await params;
-  return <ConversationPageClient roomId={roomId} />;
+  return <PrivateChatsClient initialRoomId={roomId} />;
 }
