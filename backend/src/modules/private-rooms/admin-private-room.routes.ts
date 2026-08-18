@@ -11,7 +11,8 @@ import {
   getAdminPrivateRoomById,
   getAdminPrivateRoomMessages,
   sendAdminPrivateRoomMessage,
-  setAdminRoomLabel
+  setAdminRoomLabel,
+  markAdminPrivateRoomAsRead
 } from "./admin-private-room.controller.js";
 
 const router = Router();
@@ -21,6 +22,7 @@ router.use(requireAdminAuth);
 router.get("/", validateAdminGetQuery, getAdminPrivateRooms);
 router.get("/unread", getAdminPrivateUnread);
 router.get("/:roomId", validateRoomId, getAdminPrivateRoomById);
+router.post("/:roomId/read", validateRoomId, markAdminPrivateRoomAsRead);
 router.patch("/:roomId/label", validateRoomId, setAdminRoomLabel);
 router.get("/:roomId/messages", validateRoomId, validateAdminGetQuery, getAdminPrivateRoomMessages);
 router.post("/:roomId/messages", validateRoomId, validateAdminSendMessage, sendAdminPrivateRoomMessage);

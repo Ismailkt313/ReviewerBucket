@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo, JSX } from "react";
 import Link from "next/link";
 import {
   AdminPrivateRoom,
@@ -11,6 +11,7 @@ import {
   setAdminRoomLabel,
   formatAdminUserDisplayId,
 } from "@/app/services/admin-chat";
+import { useAdminPrivateUnread } from "@/app/hooks/useAdminPrivateUnread";
 import { getSocket } from "@/app/utils/socket";
 import AdminShell from "@/app/admin/components/AdminShell";
 import ScrollArea from "@/app/components/ScrollArea";
@@ -33,6 +34,56 @@ import {
 
 export interface AdminChatClientProps {
   selectedRoomId?: string;
+}
+
+// ─── Chat Messages Skeleton Fallback ──────────────────────────────────────────
+function ChatMessagesSkeleton(): JSX.Element {
+  return (
+    <div className="space-y-4 animate-pulse select-none" aria-label="Loading conversation messages">
+      {/* Date badge skeleton */}
+      <div className="flex justify-center my-3">
+        <div className="h-4 w-20 bg-neutral-200 dark:bg-neutral-800 rounded-full" />
+      </div>
+
+      {/* Incoming user bubble skeleton 1 */}
+      <div className="flex justify-start">
+        <div className="max-w-[75%] sm:max-w-[60%] space-y-1.5 w-full">
+          <div className="p-3.5 rounded-2xl rounded-bl-sm bg-neutral-100 dark:bg-neutral-800/90 border border-border/50 space-y-2">
+            <div className="h-3.5 w-4/5 bg-neutral-200 dark:bg-neutral-700 rounded" />
+            <div className="h-3.5 w-2/3 bg-neutral-200 dark:bg-neutral-700 rounded" />
+            <div className="flex justify-end pt-1">
+              <div className="h-2 w-10 bg-neutral-200/80 dark:bg-neutral-700/80 rounded" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Outgoing admin bubble skeleton 1 */}
+      <div className="flex justify-end">
+        <div className="max-w-[70%] sm:max-w-[55%] space-y-1.5 w-full">
+          <div className="p-3.5 rounded-2xl rounded-br-sm bg-neutral-200/80 dark:bg-neutral-700/80 space-y-2">
+            <div className="h-3.5 w-full bg-neutral-300 dark:bg-neutral-600 rounded" />
+            <div className="h-3.5 w-3/5 bg-neutral-300 dark:bg-neutral-600 rounded" />
+            <div className="flex justify-end pt-1">
+              <div className="h-2 w-10 bg-neutral-300/80 dark:bg-neutral-600/80 rounded" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Incoming user bubble skeleton 2 */}
+      <div className="flex justify-start">
+        <div className="max-w-[65%] sm:max-w-[50%] space-y-1.5 w-full">
+          <div className="p-3.5 rounded-2xl rounded-bl-sm bg-neutral-100 dark:bg-neutral-800/90 border border-border/50 space-y-2">
+            <div className="h-3.5 w-full bg-neutral-200 dark:bg-neutral-700 rounded" />
+            <div className="flex justify-end pt-1">
+              <div className="h-2 w-10 bg-neutral-200/80 dark:bg-neutral-700/80 rounded" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function formatMessageTime(dateString: string): string {
@@ -62,6 +113,20 @@ function formatMessageTime(dateString: string): string {
   });
 }
 
+function formatRelativeTime(dateString?: string): string {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return "";
+  const diffMs = Date.now() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return "Now";
+  if (diffMins < 60) return `${diffMins}m`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d`;
+}
+
 // In-memory persistent caches for Admin Chat (survives soft room switching)
 const adminMessagesCache = new Map<string, AdminPrivateMessage[]>();
 let adminRoomsCache: AdminPrivateRoom[] | null = null;
@@ -70,11 +135,26 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
   // Active room state (allows soft-navigation without full page reload)
   const [activeRoomId, setActiveRoomId] = useState<string | null>(() => initialRoomId || null);
 
+  // Global unread sync hook
+  const {
+    roomUnreadCounts,
+    totalUnreadCount: hookTotalUnreadCount,
+    markRoomRead,
+  } = useAdminPrivateUnread();
+
   // State
   const [rooms, setRooms] = useState<AdminPrivateRoom[]>(() => adminRoomsCache || []);
   const [searchQuery, setSearchQuery] = useState("");
   const [isRoomsLoading, setIsRoomsLoading] = useState<boolean>(!adminRoomsCache);
   const [roomsError, setRoomsError] = useState<string | null>(null);
+
+  const totalUnreadCount = useMemo(() => {
+    if (activeRoomId) {
+      const activeUnread = roomUnreadCounts[activeRoomId] || 0;
+      return Math.max(0, hookTotalUnreadCount - activeUnread);
+    }
+    return hookTotalUnreadCount;
+  }, [activeRoomId, hookTotalUnreadCount, roomUnreadCounts]);
 
   const activeRoom = useMemo(() => {
     if (!activeRoomId) return null;
@@ -119,33 +199,59 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
     messagesEndRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
   }, []);
 
+  // Soft room selection handler
+  const handleSelectRoom = useCallback((roomId: string) => {
+    if (roomId === activeRoomId) return;
+
+    // Reset interaction & error states
+    setReplyingTo(null);
+    setMessagesError(null);
+    setSendError(null);
+
+    // Optimistically mark this room as read via the hook (handles local state + backend sync)
+    markRoomRead(roomId);
+
+    // Set active room ID
+    setActiveRoomId(roomId);
+    window.history.pushState(null, "", `/admin/chat/${roomId}`);
+
+    // If cached, render immediately; otherwise clear stale messages and display skeleton
+    const cached = adminMessagesCache.get(roomId);
+    if (cached && cached.length > 0) {
+      setMessages(cached);
+      setIsMessagesLoading(false);
+      setTimeout(() => scrollToBottom(false), 20);
+    } else {
+      setMessages([]);
+      setIsMessagesLoading(true);
+    }
+  }, [activeRoomId, scrollToBottom, markRoomRead]);
+
+  // Soft back handler for mobile
+  const handleBack = useCallback(() => {
+    setActiveRoomId(null);
+    setMessages([]);
+    setIsMessagesLoading(false);
+    setReplyingTo(null);
+    setMessagesError(null);
+    window.history.pushState(null, "", "/admin/chat");
+  }, []);
+
   // Listen to browser forward/back buttons for soft history navigation
   useEffect(() => {
     const handlePopState = () => {
       const path = window.location.pathname;
       const match = path.match(/\/admin\/chat\/([^/?#]+)/);
       if (match && match[1]) {
-        setActiveRoomId(match[1]);
+        handleSelectRoom(match[1]);
       } else {
-        setActiveRoomId(null);
+        handleBack();
       }
     };
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
-
-  // Soft room selection handler
-  const handleSelectRoom = useCallback((roomId: string) => {
-    setActiveRoomId(roomId);
-    window.history.pushState(null, "", `/admin/chat/${roomId}`);
-  }, []);
-
-  // Soft back handler for mobile
-  const handleBack = useCallback(() => {
-    setActiveRoomId(null);
-    window.history.pushState(null, "", "/admin/chat");
-  }, []);
+  }, [handleSelectRoom, handleBack]);
 
   // Escape key listener to clear reply or close modal
   useEffect(() => {
@@ -231,8 +337,9 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
     setRoomsError(null);
     try {
       const data = await getAdminPrivateRooms();
-      adminRoomsCache = data;
-      setRooms(data);
+      const normalized = data.map((r) => (r.id === activeRoomId ? { ...r, unreadCount: 0 } : r));
+      adminRoomsCache = normalized;
+      setRooms(normalized);
     } catch (err: unknown) {
       if (!adminRoomsCache) {
         setRoomsError(err instanceof Error ? err.message : "Failed to load conversations.");
@@ -240,15 +347,16 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
     } finally {
       setIsRoomsLoading(false);
     }
-  }, []);
+  }, [activeRoomId]);
 
   useEffect(() => {
     let isMounted = true;
     getAdminPrivateRooms()
       .then((data) => {
         if (!isMounted) return;
-        adminRoomsCache = data;
-        setRooms(data);
+        const normalized = data.map((r) => (r.id === activeRoomId ? { ...r, unreadCount: 0 } : r));
+        adminRoomsCache = normalized;
+        setRooms(normalized);
         setIsRoomsLoading(false);
       })
       .catch((err: unknown) => {
@@ -262,16 +370,21 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [activeRoomId]);
 
   // 2. Fetch messages when activeRoomId changes (with cache-first instant render)
   const fetchMessages = useCallback(async (roomId: string) => {
     const cached = adminMessagesCache.get(roomId);
-    if (!cached || cached.length === 0) {
+    if (cached && cached.length > 0) {
+      setMessages(cached);
+      setIsMessagesLoading(false);
+    } else {
+      setMessages([]);
       setIsMessagesLoading(true);
     }
     setMessagesError(null);
     setReplyingTo(null);
+
     try {
       const data = await getAdminPrivateMessages(roomId);
       const fetchedMsgs = data.messages || [];
@@ -291,18 +404,24 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
     let isMounted = true;
     if (!activeRoomId) return;
 
-    getAdminPrivateMessages(activeRoomId)
+    const currentRoomId = activeRoomId;
+    getAdminPrivateMessages(currentRoomId)
       .then((data) => {
         if (!isMounted) return;
+        if (currentRoomId !== activeRoomId) return;
         const fetchedMsgs = data.messages || [];
-        adminMessagesCache.set(activeRoomId, fetchedMsgs);
+        adminMessagesCache.set(currentRoomId, fetchedMsgs);
         setMessages(fetchedMsgs);
         setIsMessagesLoading(false);
         setTimeout(() => scrollToBottom(false), 50);
+
+        // Mark room as read for admin via the hook
+        markRoomRead(currentRoomId);
       })
       .catch((err: unknown) => {
         if (!isMounted) return;
-        if (!adminMessagesCache.has(activeRoomId)) {
+        if (currentRoomId !== activeRoomId) return;
+        if (!adminMessagesCache.has(currentRoomId)) {
           setMessagesError(err instanceof Error ? err.message : "Failed to load messages.");
         }
         setIsMessagesLoading(false);
@@ -311,16 +430,16 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
     return () => {
       isMounted = false;
     };
-  }, [activeRoomId, scrollToBottom]);
+  }, [activeRoomId, scrollToBottom, markRoomRead]);
 
-  // 3. Socket.IO Real-time Connection for active room
+  // 3. Socket.IO Real-time Connection for active room and global unread sync
   useEffect(() => {
-    if (!activeRoomId) return;
-
     const socket = getSocket();
 
     const joinRoom = () => {
-      socket.emit("join:private-room", { roomId: activeRoomId });
+      if (activeRoomId) {
+        socket.emit("join:private-room", { roomId: activeRoomId });
+      }
     };
 
     if (socket.connected) {
@@ -329,8 +448,19 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
       socket.on("connect", joinRoom);
     }
 
+    // Deduplicate messages received from both user:admin and private-room:${roomId}
+    const processedMsgIds = new Set<string>();
+
     const handleNewMessage = (msg: AdminPrivateMessage & { roomId?: string }) => {
       const targetRoomId = msg.roomId || activeRoomId;
+      if (!targetRoomId) return;
+
+      // Deduplicate: admin receives private:message:new from both user:admin and private-room channels
+      if (processedMsgIds.has(msg.id)) return;
+      processedMsgIds.add(msg.id);
+      if (processedMsgIds.size > 300) {
+        processedMsgIds.clear();
+      }
 
       // Update room messages cache
       const cached = adminMessagesCache.get(targetRoomId) || [];
@@ -338,20 +468,29 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
         adminMessagesCache.set(targetRoomId, [...cached, msg]);
       }
 
-      // If this message belongs to the currently open chat, append immediately
+      // If this message belongs to the currently open chat, append immediately and mark as read
       if (targetRoomId === activeRoomId) {
         setMessages((prev) => {
           if (prev.some((m) => m.id === msg.id)) return prev;
           return [...prev, msg];
         });
         setTimeout(() => scrollToBottom(true), 50);
+
+        if (msg.senderId !== "admin") {
+          markRoomRead(targetRoomId);
+        }
       }
 
       // Update room lastMessage in sidebar list and bump to top
+      // NOTE: unread counts are managed by useAdminPrivateUnread hook via roomUnreadCounts
       setRooms((prev) => {
         const index = prev.findIndex((r) => r.id === targetRoomId);
-        if (index === -1) return prev;
-        const updatedRoom = {
+        if (index === -1) {
+          fetchRooms();
+          return prev;
+        }
+
+        const updatedRoom: AdminPrivateRoom = {
           ...prev[index],
           lastMessage: {
             id: msg.id,
@@ -371,11 +510,13 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
     socket.on("private:message:new", handleNewMessage);
 
     return () => {
-      socket.emit("leave:private-room", { roomId: activeRoomId });
+      if (activeRoomId) {
+        socket.emit("leave:private-room", { roomId: activeRoomId });
+      }
       socket.off("connect", joinRoom);
       socket.off("private:message:new", handleNewMessage);
     };
-  }, [activeRoomId, scrollToBottom]);
+  }, [activeRoomId, scrollToBottom, fetchRooms, markRoomRead]);
 
   // 4. Send message handler (Socket.IO with REST fallback)
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -404,6 +545,7 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
       setReplyingTo(null);
       if (textareaRef.current) textareaRef.current.style.height = "auto";
       setTimeout(() => scrollToBottom(true), 50);
+      markRoomRead(activeRoomId);
 
       setRooms((prev) => {
         const index = prev.findIndex((r) => r.id === activeRoomId);
@@ -545,29 +687,36 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
           }`}
         >
           {/* List Search Header */}
-          <div className="p-3.5 border-b border-border space-y-2">
+          <div className="p-3 border-b border-border">
             <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
               <input
                 type="text"
-                placeholder="Search user# or label..."
+                placeholder="Search conversations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-xs bg-background border border-border rounded-xl text-foreground placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full pl-8.5 pr-3 py-1.5 text-xs bg-surface border border-border rounded-xl text-foreground placeholder-muted focus:outline-none focus:ring-1 focus:ring-foreground transition-colors"
               />
             </div>
           </div>
 
-          {/* Quick Context Switcher to Broadcast */}
-          <div className="px-3.5 py-2 border-b border-border bg-surface/50 flex items-center justify-between">
-            <span className="text-[11px] font-bold text-muted uppercase tracking-wider">
-              Private Chats
-            </span>
+          {/* Quick Context Switcher to Broadcast & Total Unread Indicator */}
+          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold text-muted uppercase tracking-wider">
+                Conversations ({filteredRooms.length})
+              </span>
+              {totalUnreadCount > 0 && (
+                <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-foreground px-1 text-[9px] font-bold text-background">
+                  {totalUnreadCount > 9 ? "9+" : totalUnreadCount}
+                </span>
+              )}
+            </div>
             <Link
               href="/admin/broadcast"
-              className="text-[11px] font-semibold text-blue-500 hover:text-blue-600 flex items-center gap-1"
+              className="text-xs font-semibold text-muted hover:text-foreground flex items-center gap-1 transition-colors"
             >
-              <Megaphone className="w-3 h-3" />
+              <Megaphone className="w-3.5 h-3.5" />
               <span>Broadcast</span>
             </Link>
           </div>
@@ -576,7 +725,7 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
           <ScrollArea className="flex-1 divide-y divide-border">
             {isRoomsLoading ? (
               <div className="p-6 text-center space-y-3">
-                <Loader2 className="w-6 h-6 animate-spin text-blue-500 mx-auto" />
+                <Loader2 className="w-6 h-6 animate-spin text-muted mx-auto" />
                 <p className="text-xs text-muted">Loading developer chats...</p>
               </div>
             ) : roomsError ? (
@@ -585,7 +734,7 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
                 <p className="text-xs text-muted">{roomsError}</p>
                 <button
                   onClick={fetchRooms}
-                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg"
+                  className="px-3 py-1.5 bg-foreground text-background text-xs font-semibold rounded-lg"
                 >
                   Retry
                 </button>
@@ -602,6 +751,11 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
               filteredRooms.map((room: AdminPrivateRoom) => {
                 const isSelected = room.id === activeRoomId;
                 const displayId = getAnonymousLabel(room);
+                const roomUnread = roomUnreadCounts[room.id] ?? room.unreadCount ?? 0;
+                const unreadCount = !isSelected && roomUnread > 0 ? roomUnread : 0;
+                const timeString = room.lastMessage?.createdAt || room.updatedAt;
+                const isMine = room.lastMessage?.senderId === "admin";
+
                 return (
                   <button
                     type="button"
@@ -609,14 +763,16 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
                     onClick={() => handleSelectRoom(room.id)}
                     className={`w-full text-left p-4 transition-colors relative block group focus-visible:outline-none ${
                       isSelected
-                        ? "bg-neutral-100 dark:bg-neutral-800 border-l-2 border-l-foreground text-foreground"
+                        ? "bg-neutral-100 dark:bg-neutral-800 text-foreground border-l-2 border-l-foreground"
                         : "hover:bg-neutral-100/70 dark:hover:bg-neutral-800/60 text-foreground"
                     }`}
+                    aria-label={`Open conversation with ${room.adminLabel || displayId}${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
+                    aria-current={isSelected ? "page" : undefined}
                   >
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div
-                          className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 border transition-colors ${
+                          className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-medium shrink-0 border transition-colors ${
                             isSelected
                               ? "bg-neutral-200 dark:bg-neutral-700 border-foreground/20 text-foreground"
                               : "bg-neutral-100 dark:bg-neutral-800 border-border text-secondary group-hover:text-foreground group-hover:border-foreground/20"
@@ -624,41 +780,62 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
                         >
                           <User className="w-3.5 h-3.5" />
                         </div>
-                        <div className="min-w-0 flex-1">
+
+                        <div className="min-w-0 flex-1 flex items-center gap-1.5">
                           {room.adminLabel ? (
-                            <div>
-                              <p className="text-xs font-bold text-foreground truncate leading-tight">
+                            <>
+                              <span
+                                className={`text-xs truncate leading-tight text-foreground transition-colors ${
+                                  isSelected ? "font-bold" : "font-semibold group-hover:text-foreground"
+                                }`}
+                              >
                                 {room.adminLabel}
-                              </p>
-                              <p className="font-mono text-[10px] text-muted group-hover:text-secondary truncate leading-none mt-0.5 transition-colors">
-                                {displayId}
-                              </p>
-                            </div>
+                              </span>
+                              <span className="font-mono text-[10px] text-muted group-hover:text-secondary truncate shrink-0">
+                                ({displayId})
+                              </span>
+                            </>
                           ) : (
-                            <span className="font-mono text-xs font-bold text-foreground truncate block">
+                            <span
+                              className={`text-xs truncate leading-tight text-foreground transition-colors ${
+                                isSelected ? "font-bold" : "font-semibold group-hover:text-foreground"
+                              }`}
+                            >
                               {displayId}
                             </span>
                           )}
                         </div>
                       </div>
-                      {room.lastMessage?.createdAt && (
-                        <span className="text-[10px] text-muted group-hover:text-secondary shrink-0 tabular-nums transition-colors">
-                          {formatMessageTime(room.lastMessage.createdAt)}
+
+                      {timeString && (
+                        <span className="text-[10px] text-muted group-hover:text-secondary font-normal shrink-0 tabular-nums transition-colors">
+                          {formatRelativeTime(timeString)}
                         </span>
                       )}
                     </div>
-                    {room.lastMessage?.content ? (
-                      <p className="text-xs text-muted group-hover:text-secondary truncate pl-9.5 transition-colors">
-                        {room.lastMessage.senderId === "admin" ? (
-                          <span className="font-normal text-secondary group-hover:text-foreground">You: </span>
-                        ) : null}
-                        {room.lastMessage.content}
+
+                    <div className="flex items-center justify-between gap-2 pl-9.5">
+                      <p className="text-xs text-muted group-hover:text-secondary font-normal truncate leading-relaxed transition-colors">
+                        {room.lastMessage?.content ? (
+                          <>
+                            {isMine && (
+                              <span className="font-normal text-secondary group-hover:text-foreground">
+                                You:{" "}
+                              </span>
+                            )}
+                            {room.lastMessage.content}
+                          </>
+                        ) : (
+                          <span className="italic text-muted/70 text-[11px]">No messages yet</span>
+                        )}
                       </p>
-                    ) : (
-                      <p className="text-[11px] text-muted italic pl-9.5">
-                        No messages yet
-                      </p>
-                    )}
+
+                      {unreadCount > 0 && (
+                        <span className="flex-shrink-0 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-foreground px-1 text-[9px] font-bold text-background">
+                          {unreadCount > 9 ? "9+" : unreadCount}
+                        </span>
+                      )}
+                    </div>
                   </button>
                 );
               })
@@ -736,25 +913,23 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
               {/* Message History Thread - Matching User Community Chat UI */}
               <ScrollArea className="flex-1 p-4 sm:p-6 space-y-2">
                 {isMessagesLoading ? (
-                  <div className="py-12 flex flex-col items-center justify-center gap-2">
-                    <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-                    <p className="text-xs text-muted">Loading messages...</p>
-                  </div>
+                  <ChatMessagesSkeleton />
                 ) : messagesError ? (
-                  <div className="p-6 text-center border border-red-800/30 rounded-2xl bg-red-950/20 max-w-sm mx-auto space-y-3">
+                  <div className="py-16 text-center border border-red-800/30 rounded-2xl bg-red-950/10 dark:bg-red-950/20 max-w-sm mx-auto space-y-3 p-6">
                     <AlertCircle className="w-6 h-6 text-red-500 mx-auto" />
                     <p className="text-xs text-muted">{messagesError}</p>
                     <button
                       onClick={() => activeRoomId && fetchMessages(activeRoomId)}
-                      className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg"
+                      className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
                     >
                       Retry
                     </button>
                   </div>
                 ) : messages.length === 0 ? (
-                  <div className="py-12 text-center text-muted space-y-2">
-                    <Clock className="w-8 h-8 text-muted/50 mx-auto" />
-                    <p className="text-xs font-medium">No message history available.</p>
+                  <div className="py-16 text-center text-muted space-y-2 select-none">
+                    <Clock className="w-8 h-8 text-muted/40 mx-auto" />
+                    <p className="text-xs font-semibold text-foreground">No message history</p>
+                    <p className="text-[11px] text-muted">This conversation does not have any messages yet.</p>
                   </div>
                 ) : (
                   messages.map((msg, index) => {

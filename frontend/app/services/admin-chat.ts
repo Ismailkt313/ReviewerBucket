@@ -197,3 +197,38 @@ export async function sendAdminPrivateMessage(
   if (!json?.data) throw new Error("Unexpected response from server.");
   return json.data as AdminPrivateMessage;
 }
+
+/**
+ * Mark a developer room as read for Admin.
+ */
+export async function markAdminPrivateRoomAsRead(roomId: string): Promise<void> {
+  try {
+    await adminFetch(getApiUrl(`/api/admin/private-rooms/${roomId}/read`), {
+      method: "POST",
+    });
+  } catch {
+    // Non-blocking: background read sync
+  }
+}
+
+export interface AdminPrivateUnreadData {
+  totalUnreadCount: number;
+  rooms: Record<string, number>;
+}
+
+/**
+ * Fetch total and per-room unread counts for Admin.
+ */
+export async function getAdminPrivateUnreadCounts(): Promise<AdminPrivateUnreadData> {
+  try {
+    const res = await adminFetch(getApiUrl("/api/admin/private-rooms/unread"));
+    if (!res.ok) {
+      return { totalUnreadCount: 0, rooms: {} };
+    }
+    const json = await res.json();
+    return json?.data || { totalUnreadCount: 0, rooms: {} };
+  } catch {
+    return { totalUnreadCount: 0, rooms: {} };
+  }
+}
+

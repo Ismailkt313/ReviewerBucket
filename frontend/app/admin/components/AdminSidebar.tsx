@@ -157,13 +157,13 @@ export default function AdminSidebar({
                     </div>
                     {item.badge !== null && (
                       <span
-                        className={`px-2 py-0.5 text-xs font-bold rounded-full ${
+                        className={`px-2 py-0.5 text-xs font-bold rounded-full transition-colors ${
                           active
-                            ? "bg-background/20 text-background"
-                            : "bg-blue-500/10 text-blue-500 dark:bg-blue-400/10 dark:text-blue-400"
+                            ? "bg-background text-foreground shadow-xs"
+                            : "bg-foreground text-background shadow-xs"
                         }`}
                       >
-                        {item.badge}
+                        {item.badge > 99 ? "99+" : item.badge}
                       </span>
                     )}
                   </Link>

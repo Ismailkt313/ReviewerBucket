@@ -17,7 +17,6 @@ import {
   MessageSquare,
   Clock,
   Check,
-  CheckCheck,
   AlertCircle,
   RotateCcw,
 } from "lucide-react";
@@ -158,7 +157,6 @@ const MessageBubble = React.memo(
     onInitiateReply,
     onScrollToMessage,
     onRetryMessage,
-    onDeleteFailedMessage,
     onTouchStart,
     onTouchMove,
     onTouchEnd,
@@ -167,7 +165,7 @@ const MessageBubble = React.memo(
   }: MessageBubbleProps) {
     const isSending = item.status === "sending";
     const isFailed = item.status === "failed";
-    const msgId = item.id || (item as any)._id || item.tempId;
+    const msgId = item.id || item._id || item.tempId;
 
     return (
       <div
@@ -377,7 +375,7 @@ export default function ConversationView({
       if (!updatedRoomId || updatedRoomId === roomId) {
         const cached = privateChatCache.getRoom(roomId);
         if (cached) {
-          setMessages(cached.messages);
+          setMessages([...cached.messages]);
           setHasMore(cached.hasMore);
           setNextCursor(cached.nextCursor);
           if (cached.contactIdentity) {
@@ -390,19 +388,21 @@ export default function ConversationView({
     return unsubscribe;
   }, [roomId]);
 
-  // ── Fetch room details (Cache-first with background revalidation) ───────────
-  const fetchRoom = useCallback(async () => {
-    const cached = privateChatCache.getRoom(roomId);
-    if (!cached?.roomDetails) {
-      setRoomLoading(true);
-    }
+  // ── Manual refresh handler for UI buttons ──────────────────────────────────
+  const fetchRoomAndMessages = useCallback(async () => {
+    setMessagesLoading(true);
+    setMessagesError("");
     setRoomError("");
 
     try {
-      const room = await getRoomById(roomId);
+      const [room, result] = await Promise.all([
+        getRoomById(roomId),
+        getMessages(roomId, 30),
+      ]);
+
       const otherId = room.participants.find((p) => p !== clientId) || room.participants[0];
       setOtherParticipantId(otherId);
-
+      setRoomLoading(false);
       privateChatCache.setRoomData(roomId, { roomDetails: room });
 
       if (otherId && otherId !== "admin") {
@@ -414,115 +414,116 @@ export default function ConversationView({
           })
           .catch(() => {});
       }
-    } catch (err: unknown) {
-      if (!privateChatCache.getRoom(roomId)?.roomDetails) {
-        setRoomError(err instanceof Error ? err.message : "Failed to load conversation details.");
-      }
-    } finally {
-      setRoomLoading(false);
-    }
-  }, [roomId, clientId, onContactUpdate]);
 
-  // ── Fetch messages (Initial batch of 30, background revalidation) ───────────
-  const fetchMessages = useCallback(async () => {
-    const cached = privateChatCache.getRoom(roomId);
-    if (!cached || cached.messages.length === 0) {  
-      setMessagesLoading(true);
-    }
-    setMessagesError("");
-
-    try {
-      const result = await getMessages(roomId, 30);
-      
-      // Preserve any local optimistic "sending" or "failed" messages
       const currentCache = privateChatCache.getRoom(roomId);
       const pendingOptimistic = (currentCache?.messages || []).filter(
         (m) => m.status === "sending" || m.status === "failed"
       );
-
-      const serverIds = new Set(result.messages.map((m) => m.id || (m as any)._id));
+      const serverIds = new Set(result.messages.map((m) => m.id || m._id));
       const filteredOptimistic = pendingOptimistic.filter(
         (m) => !serverIds.has(m.id) && !serverIds.has(m.tempId || "")
       );
       const merged = [...result.messages, ...filteredOptimistic];
 
-      // If messages changed or initial load, update state and cache
-      const isDifferent =
-        merged.length !== (currentCache?.messages.length || 0) ||
-        merged.some((m: IPrivateMessage, idx: number) => m.id !== currentCache?.messages[idx]?.id || m.status !== currentCache?.messages[idx]?.status);
+      setMessages(merged);
+      setHasMore(result.hasMore);
+      setNextCursor(result.nextCursor);
 
-      if (isDifferent) {
+      privateChatCache.setRoomData(roomId, {
+        messages: merged,
+        hasMore: result.hasMore,
+        nextCursor: result.nextCursor,
+      });
+
+      markRoomRead(roomId);
+    } catch (err: unknown) {
+      setMessagesError(err instanceof Error ? err.message : "Failed to load messages.");
+    } finally {
+      setMessagesLoading(false);
+      setRoomLoading(false);
+    }
+  }, [roomId, clientId, onContactUpdate, markRoomRead]);
+
+  // ── Fetch room details & messages when roomId changes ──────────────────────
+  useEffect(() => {
+    isInitialScrollDone.current = false;
+    let isCancelled = false;
+
+    // Background revalidation
+    getRoomById(roomId)
+      .then((room) => {
+        if (isCancelled) return;
+        const otherId = room.participants.find((p) => p !== clientId) || room.participants[0];
+        setOtherParticipantId(otherId);
+        setRoomLoading(false);
+        privateChatCache.setRoomData(roomId, { roomDetails: room });
+
+        if (otherId && otherId !== "admin") {
+          getContactIdentity(otherId)
+            .then((identity) => {
+              if (isCancelled) return;
+              setContactIdentity(identity);
+              privateChatCache.setRoomData(roomId, { contactIdentity: identity });
+              if (onContactUpdate) onContactUpdate(identity);
+            })
+            .catch(() => {});
+        }
+      })
+      .catch((err: unknown) => {
+        if (isCancelled) return;
+        if (!privateChatCache.getRoom(roomId)?.roomDetails) {
+          setRoomError(err instanceof Error ? err.message : "Failed to load conversation details.");
+        }
+        setRoomLoading(false);
+      });
+
+    getMessages(roomId, 30)
+      .then((result) => {
+        if (isCancelled) return;
+        const currentCache = privateChatCache.getRoom(roomId);
+        const pendingOptimistic = (currentCache?.messages || []).filter(
+          (m) => m.status === "sending" || m.status === "failed"
+        );
+        const serverIds = new Set(result.messages.map((m) => m.id || m._id));
+        const filteredOptimistic = pendingOptimistic.filter(
+          (m) => !serverIds.has(m.id) && !serverIds.has(m.tempId || "")
+        );
+        const merged = [...result.messages, ...filteredOptimistic];
+
         setMessages(merged);
+        setHasMore(result.hasMore);
+        setNextCursor(result.nextCursor);
+        setMessagesLoading(false);
+
         privateChatCache.setRoomData(roomId, {
           messages: merged,
           hasMore: result.hasMore,
           nextCursor: result.nextCursor,
         });
-      }
 
-      setHasMore(result.hasMore);
-      setNextCursor(result.nextCursor);
+        markRoomRead(roomId);
 
-      markRoomRead(roomId);
-
-      if (!isInitialScrollDone.current) {
-        requestAnimationFrame(() => {
-          if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-            isInitialScrollDone.current = true;
-          }
-        });
-      }
-    } catch (err: unknown) {
-      if (!privateChatCache.getRoom(roomId)?.messages.length) {
-        setMessagesError(err instanceof Error ? err.message : "Failed to load messages.");
-      }
-    } finally {
-      setMessagesLoading(false);
-    }
-  }, [roomId, markRoomRead]);
-
-  // When roomId changes: reset initial scroll flag & load room data synchronously
-  useEffect(() => {
-    isInitialScrollDone.current = false;
-    const cached = privateChatCache.getRoom(roomId);
-    if (cached) {
-      setMessages(cached.messages);
-      setHasMore(cached.hasMore);
-      setNextCursor(cached.nextCursor);
-      setMessagesLoading(cached.messages.length === 0);
-      if (cached.roomDetails) {
-        const otherId = cached.roomDetails.participants.find((p) => p !== clientId) || cached.roomDetails.participants[0];
-        setOtherParticipantId(otherId);
-        setRoomLoading(false);
-      } else {
-        setRoomLoading(true);
-      }
-      if (cached.contactIdentity) {
-        setContactIdentity(cached.contactIdentity);
-      } else if (initialContactIdentity) {
-        setContactIdentity(initialContactIdentity);
-      }
-      requestAnimationFrame(() => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-          isInitialScrollDone.current = true;
+        if (!isInitialScrollDone.current) {
+          requestAnimationFrame(() => {
+            if (scrollRef.current) {
+              scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+              isInitialScrollDone.current = true;
+            }
+          });
         }
+      })
+      .catch((err: unknown) => {
+        if (isCancelled) return;
+        if (!privateChatCache.getRoom(roomId)?.messages.length) {
+          setMessagesError(err instanceof Error ? err.message : "Failed to load messages.");
+        }
+        setMessagesLoading(false);
       });
-    } else {
-      setMessages([]);
-      setMessagesLoading(true);
-      setRoomLoading(true);
-      setOtherParticipantId(null);
-      setContactIdentity(initialContactIdentity || null);
-    }
 
-    setInputText(privateChatCache.getDraftText(roomId));
-    setReplyingTo(null);
-    setSendError("");
-    fetchRoom();
-    fetchMessages();
-  }, [roomId, fetchRoom, fetchMessages, clientId, initialContactIdentity]);
+    return () => {
+      isCancelled = true;
+    };
+  }, [roomId, clientId, onContactUpdate, markRoomRead, initialContactIdentity]);
 
   // ── Sockets ─────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -542,6 +543,20 @@ export default function ConversationView({
       if (msg.roomId && msg.roomId !== roomId) return;
 
       privateChatCache.handleIncomingSocketMessage(roomId, msg);
+      setMessages((prev) => {
+        const incomingId = msg.id || msg._id;
+        const existingIdx = prev.findIndex(
+          (m) =>
+            (incomingId && (m.id === incomingId || m._id === incomingId)) ||
+            (m.status === "sending" && m.content === msg.content && m.senderId === msg.senderId)
+        );
+        if (existingIdx !== -1) {
+          const next = [...prev];
+          next[existingIdx] = { ...msg, status: "sent" as const, tempId: undefined };
+          return next;
+        }
+        return [...prev, { ...msg, status: "sent" as const }];
+      });
       markRoomRead(roomId);
 
       if (scrollRef.current) {
@@ -676,8 +691,8 @@ export default function ConversationView({
       const result = await getMessages(roomId, 30, nextCursor);
       
       setMessages((prev) => {
-        const existingIds = new Set(prev.map((m) => m.id || (m as any)._id || m.tempId));
-        const newMsgs = result.messages.filter((m) => !existingIds.has(m.id || (m as any)._id));
+        const existingIds = new Set(prev.map((m) => m.id || m._id || m.tempId));
+        const newMsgs = result.messages.filter((m) => !existingIds.has(m.id || m._id));
         const merged = [...newMsgs, ...prev];
 
         privateChatCache.setRoomData(roomId, {
@@ -756,6 +771,11 @@ export default function ConversationView({
 
     // 1. Instantly append to state and cache
     privateChatCache.appendOptimisticMessage(roomId, optimisticMessage);
+    setMessages((prev) => {
+      const idToMatch = optimisticMessage.id || optimisticMessage.tempId;
+      if (prev.some((m) => m.id === idToMatch || m.tempId === idToMatch)) return prev;
+      return [...prev, optimisticMessage];
+    });
     setInputText("");
     privateChatCache.setDraftText(roomId, "");
     setReplyingTo(null);
@@ -773,11 +793,31 @@ export default function ConversationView({
     });
 
     // 2. Perform backend API call asynchronously
+    setIsSending(true);
     try {
       const serverMsg = await sendMessage(roomId, trimmed, replySnapshot?.id);
       privateChatCache.resolveOptimisticMessage(roomId, tempId, serverMsg);
+      setMessages((prev) => {
+        const serverId = serverMsg.id || serverMsg._id;
+        const exists = prev.some((m) => (m.id || m._id) === serverId && m.status === "sent");
+        if (exists) {
+          return prev.filter((m) => m.tempId !== tempId && m.id !== tempId);
+        }
+        return prev.map((m) =>
+          m.tempId === tempId || m.id === tempId || (serverId && (m.id === serverId || m._id === serverId))
+            ? { ...serverMsg, status: "sent" as const, tempId: undefined }
+            : m
+        );
+      });
     } catch {
       privateChatCache.markOptimisticMessageFailed(roomId, tempId);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.tempId === tempId || m.id === tempId ? { ...m, status: "failed" as const } : m
+        )
+      );
+    } finally {
+      setIsSending(false);
     }
   }, [inputText, isSending, clientId, roomId, replyingTo]);
 
@@ -791,12 +831,29 @@ export default function ConversationView({
           (m.tempId === tempId || m.id === tempId) ? { ...m, status: "sending" } : m
         ),
       });
+      setMessages((prev) =>
+        prev.map((m) =>
+          (m.tempId === tempId || m.id === tempId) ? { ...m, status: "sending" as const } : m
+        )
+      );
 
       try {
         const serverMsg = await sendMessage(roomId, msg.content, msg.replyTo?.id);
         privateChatCache.resolveOptimisticMessage(roomId, tempId, serverMsg);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.tempId === tempId || m.id === tempId
+              ? { ...serverMsg, status: "sent" as const, tempId: undefined }
+              : m
+          )
+        );
       } catch {
         privateChatCache.markOptimisticMessageFailed(roomId, tempId);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.tempId === tempId || m.id === tempId ? { ...m, status: "failed" as const } : m
+          )
+        );
       }
     },
     [roomId]
@@ -805,6 +862,7 @@ export default function ConversationView({
   const handleDeleteFailedMessage = useCallback(
     (tempId: string) => {
       privateChatCache.removeOptimisticMessage(roomId, tempId);
+      setMessages((prev) => prev.filter((m) => m.tempId !== tempId && m.id !== tempId));
     },
     [roomId]
   );
@@ -920,10 +978,7 @@ export default function ConversationView({
             <p className="text-sm font-medium text-white">{roomError}</p>
             <button
               type="button"
-              onClick={() => {
-                fetchRoom();
-                fetchMessages();
-              }}
+              onClick={fetchRoomAndMessages}
               className="px-3.5 py-1.5 bg-white text-black hover:bg-neutral-200 text-xs font-semibold rounded-full transition-colors"
             >
               Retry
@@ -1013,7 +1068,7 @@ export default function ConversationView({
 
           <button
             type="button"
-            onClick={fetchMessages}
+            onClick={fetchRoomAndMessages}
             disabled={messagesLoading}
             className="p-2 text-secondary hover:text-foreground rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors disabled:opacity-40"
             aria-label="Refresh messages"
@@ -1111,7 +1166,7 @@ export default function ConversationView({
             <p className="text-xs text-muted font-normal">{messagesError}</p>
             <button
               type="button"
-              onClick={fetchMessages}
+              onClick={fetchRoomAndMessages}
               className="px-3.5 py-1.5 bg-foreground text-background hover:opacity-90 text-xs font-semibold rounded-full transition-opacity"
             >
               Try again
@@ -1141,7 +1196,7 @@ export default function ConversationView({
           }
 
           const isMine = item.senderId === clientId;
-          const msgKey = item.id || (item as any)._id || item.tempId;
+          const msgKey = item.id || item._id || item.tempId;
 
           return (
             <MessageBubble

@@ -121,3 +121,25 @@ export const setAdminRoomLabel = async (
     next(error);
   }
 };
+
+export const markAdminPrivateRoomAsRead = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { roomId } = req.params;
+
+    await privateRoomService.markRoomAsRead(roomId, "admin");
+
+    res.status(200).json({
+      success: true,
+      data: {
+        roomId,
+        unreadCount: 0
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};

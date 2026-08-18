@@ -151,11 +151,15 @@ class PrivateChatCacheManager {
     if (!cached) return;
 
     let found = false;
+    const serverId = serverMsg.id || (serverMsg as any)._id;
+
     const updatedMessages = cached.messages.map((m) => {
-      if (m.tempId === tempId || m.id === tempId) {
+      const match = m.tempId === tempId || m.id === tempId || (serverId && (m.id === serverId || (m as any)._id === serverId));
+      if (match) {
         found = true;
         return {
           ...serverMsg,
+          id: serverId || m.id,
           status: "sent" as const,
           tempId: undefined,
         };
@@ -169,15 +173,35 @@ class PrivateChatCacheManager {
       const deduplicated: IPrivateMessage[] = [];
       for (const m of updatedMessages) {
         const id = m.id || (m as any)._id;
-        if (!seen.has(id)) {
-          seen.add(id);
+        if (id) {
+          if (!seen.has(id)) {
+            seen.add(id);
+            deduplicated.push(m);
+          }
+        } else {
           deduplicated.push(m);
         }
       }
-      cached.messages = deduplicated;
-      this.roomCache.set(roomId, cached);
+      const nextCache: CachedRoomData = {
+        ...cached,
+        messages: deduplicated,
+        lastFetchedAt: Date.now(),
+      };
+      this.roomCache.set(roomId, nextCache);
       this.updateRoomLastMessage(roomId, serverMsg, true);
       this.notify(roomId);
+    } else {
+      // Fallback: if message is not in cache yet, append it as sent
+      const exists = cached.messages.some((m) => (m.id || (m as any)._id) === serverId);
+      if (!exists) {
+        const nextCache: CachedRoomData = {
+          ...cached,
+          messages: [...cached.messages, { ...serverMsg, status: "sent" }],
+          lastFetchedAt: Date.now(),
+        };
+        this.roomCache.set(roomId, nextCache);
+        this.notify(roomId);
+      }
     }
   }
 
@@ -185,7 +209,7 @@ class PrivateChatCacheManager {
     const cached = this.roomCache.get(roomId);
     if (!cached) return;
 
-    cached.messages = cached.messages.map((m) => {
+    const nextMessages = cached.messages.map((m) => {
       if (m.tempId === tempId || m.id === tempId) {
         return {
           ...m,
@@ -195,7 +219,11 @@ class PrivateChatCacheManager {
       return m;
     });
 
-    this.roomCache.set(roomId, cached);
+    const nextCache: CachedRoomData = {
+      ...cached,
+      messages: nextMessages,
+    };
+    this.roomCache.set(roomId, nextCache);
     this.notify(roomId);
   }
 
@@ -203,10 +231,14 @@ class PrivateChatCacheManager {
     const cached = this.roomCache.get(roomId);
     if (!cached) return;
 
-    cached.messages = cached.messages.filter(
+    const nextMessages = cached.messages.filter(
       (m) => m.tempId !== tempId && m.id !== tempId
     );
-    this.roomCache.set(roomId, cached);
+    const nextCache: CachedRoomData = {
+      ...cached,
+      messages: nextMessages,
+    };
+    this.roomCache.set(roomId, nextCache);
     this.notify(roomId);
   }
 
@@ -215,27 +247,32 @@ class PrivateChatCacheManager {
     const incomingId = incomingMsg.id || (incomingMsg as any)._id;
 
     if (cached) {
-      // Check if this message already exists (either by id or matching optimistic content)
+      // Check if this message matches an existing message or optimistic sending message
       const existingIndex = cached.messages.findIndex(
         (m) =>
-          m.id === incomingId ||
-          (m as any)._id === incomingId ||
+          (incomingId && (m.id === incomingId || (m as any)._id === incomingId)) ||
           (m.status === "sending" &&
             m.content === incomingMsg.content &&
             m.senderId === incomingMsg.senderId)
       );
 
+      let nextMessages: IPrivateMessage[];
       if (existingIndex !== -1) {
-        // Replace optimistic or existing with incoming message
-        cached.messages[existingIndex] = {
+        nextMessages = [...cached.messages];
+        nextMessages[existingIndex] = {
           ...incomingMsg,
           status: "sent",
         };
       } else {
-        cached.messages = [...cached.messages, { ...incomingMsg, status: "sent" }];
+        nextMessages = [...cached.messages, { ...incomingMsg, status: "sent" }];
       }
 
-      this.roomCache.set(roomId, cached);
+      const nextCache: CachedRoomData = {
+        ...cached,
+        messages: nextMessages,
+        lastFetchedAt: Date.now(),
+      };
+      this.roomCache.set(roomId, nextCache);
     }
 
     this.updateRoomLastMessage(roomId, incomingMsg, true);
