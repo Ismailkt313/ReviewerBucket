@@ -69,23 +69,23 @@ export default function AnonymousInfoModal({ isOpen, onClose }: AnonymousInfoMod
     >
       <div
         ref={modalRef}
-        className="relative w-full max-w-md bg-surface border border-border rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col"
+        className="relative w-full max-w-md bg-surface border border-border rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col text-foreground"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border/80 bg-neutral-50/50 dark:bg-neutral-900/30">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-neutral-50/50 dark:bg-neutral-900/40">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-neutral-100 dark:bg-neutral-800 text-secondary flex items-center justify-center">
+            <div className="w-7 h-7 rounded-full bg-neutral-100 dark:bg-neutral-800 border border-border text-secondary flex items-center justify-center">
               <ShieldAlert className="w-4 h-4" />
             </div>
-            <h2 id="info-dialog-title" className="text-sm font-bold text-foreground">
+            <h2 id="info-dialog-title" className="text-sm font-semibold text-foreground">
               Anonymous private chat
             </h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-secondary hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+            className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
             aria-label="Close dialog"
           >
             <X className="w-4 h-4" />
@@ -93,24 +93,24 @@ export default function AnonymousInfoModal({ isOpen, onClose }: AnonymousInfoMod
         </div>
 
         {/* Content */}
-        <div className="p-5 space-y-3.5 text-xs sm:text-sm text-secondary leading-relaxed">
+        <div className="p-5 space-y-3.5 text-xs sm:text-sm text-secondary font-normal leading-relaxed">
           <p>
             Your anonymous identity is stored locally in this browser.
           </p>
-          <p>
+          <p className="text-muted">
             Clearing browser data, switching browsers, or changing devices may remove access to your private chats.
           </p>
-          <div className="p-3 rounded-xl bg-neutral-100 dark:bg-neutral-850/80 border border-border/60 text-foreground text-xs font-medium">
+          <div className="p-3 rounded-xl bg-neutral-100 dark:bg-neutral-800/80 border border-border text-foreground text-xs font-medium">
             Reviewer Bucket cannot recover that anonymous identity once lost.
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3.5 border-t border-border/80 bg-neutral-50/50 dark:bg-neutral-900/30 flex justify-end">
+        <div className="px-5 py-3.5 border-t border-border bg-neutral-50/50 dark:bg-neutral-900/40 flex justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-accent text-background text-xs font-semibold hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+            className="px-4 py-2 rounded-full bg-foreground text-background text-xs font-semibold hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             Got it
           </button>

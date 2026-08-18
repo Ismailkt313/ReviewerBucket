@@ -90,19 +90,19 @@ function MessageSkeleton(): JSX.Element {
     <div className="flex flex-col gap-4 px-4 py-4" aria-hidden="true">
       <div className="flex justify-start">
         <div className="flex flex-col gap-1.5 max-w-[60%]">
-          <div className="h-3 w-16 bg-white/5 rounded animate-pulse" />
-          <div className="h-12 w-56 bg-neutral-800 rounded-2xl animate-pulse" />
+          <div className="h-3 w-16 bg-neutral-200 dark:bg-neutral-800 rounded animate-pulse" />
+          <div className="h-12 w-56 bg-neutral-100 dark:bg-neutral-800 rounded-2xl animate-pulse" />
         </div>
       </div>
       <div className="flex justify-end">
         <div className="flex flex-col gap-1.5 items-end max-w-[60%]">
-          <div className="h-3 w-8 bg-white/5 rounded animate-pulse" />
-          <div className="h-10 w-44 bg-white/20 rounded-2xl animate-pulse" />
+          <div className="h-3 w-8 bg-neutral-200 dark:bg-neutral-800 rounded animate-pulse" />
+          <div className="h-10 w-44 bg-neutral-200 dark:bg-neutral-700 rounded-2xl animate-pulse" />
         </div>
       </div>
       <div className="flex justify-start">
         <div className="flex flex-col gap-1.5 max-w-[60%]">
-          <div className="h-16 w-64 bg-neutral-800 rounded-2xl animate-pulse" />
+          <div className="h-16 w-64 bg-neutral-100 dark:bg-neutral-800 rounded-2xl animate-pulse" />
         </div>
       </div>
     </div>
@@ -112,8 +112,8 @@ function MessageSkeleton(): JSX.Element {
 function HeaderSkeleton(): JSX.Element {
   return (
     <div className="flex flex-col gap-1.5" aria-hidden="true">
-      <div className="h-4 w-32 bg-white/5 rounded animate-pulse" />
-      <div className="h-3 w-20 bg-white/[0.03] rounded animate-pulse" />
+      <div className="h-4 w-32 bg-neutral-200 dark:bg-neutral-800 rounded animate-pulse" />
+      <div className="h-3 w-20 bg-neutral-100 dark:bg-neutral-850 rounded animate-pulse" />
     </div>
   );
 }
@@ -123,7 +123,7 @@ function HeaderSkeleton(): JSX.Element {
 const DateSeparator = React.memo(function DateSeparator({ label }: { label: string }): JSX.Element {
   return (
     <div className="flex items-center justify-center my-4 select-none">
-      <span className="px-3 py-0.5 rounded-full border border-white/5 bg-transparent text-[10px] font-medium text-neutral-500 uppercase tracking-wider">
+      <span className="px-3 py-0.5 rounded-full border border-border bg-surface text-[10px] font-medium text-muted uppercase tracking-wider shadow-xs">
         {label}
       </span>
     </div>
@@ -176,7 +176,7 @@ const MessageBubble = React.memo(
         onTouchMove={(e) => onTouchMove(e, item.id || item.tempId || "")}
         onTouchEnd={(e) => onTouchEnd(e, item)}
         className={`flex w-full ${isMine ? "justify-end" : "justify-start"} ${
-          isHighlighted ? "bg-white/5 py-1.5 rounded-xl px-2 transition-colors duration-500" : ""
+          isHighlighted ? "bg-neutral-100 dark:bg-neutral-800 py-1.5 rounded-xl px-2 transition-colors duration-500" : ""
         }`}
         style={{
           transform:
@@ -191,12 +191,12 @@ const MessageBubble = React.memo(
       >
         <div className="relative group max-w-[80%] flex items-center">
           <div
-            className={`px-4 py-2.5 w-full rounded-2xl transition-opacity ${
+            className={`px-4 py-2.5 w-full rounded-2xl transition-opacity shadow-xs ${
               isMine
                 ? isFailed
-                  ? "bg-neutral-800 border border-red-500/40 text-neutral-200"
-                  : "bg-white text-black"
-                : "bg-neutral-800 text-neutral-200"
+                  ? "bg-red-500/10 border border-red-500/40 text-red-600 dark:text-red-400"
+                  : "bg-bubble-mine text-bubble-mine-text"
+                : "bg-bubble-other text-bubble-other-text border border-border/50"
             } ${isSending ? "opacity-80" : ""}`}
           >
             {/* Quoted Reply Block */}
@@ -205,8 +205,8 @@ const MessageBubble = React.memo(
                 onClick={() => onScrollToMessage(item.replyTo!.id)}
                 className={`mb-2 cursor-pointer rounded-xl px-3 py-1.5 text-left transition-opacity select-none ${
                   isMine && !isFailed
-                    ? "bg-black/5 border-l-2 border-l-black text-black/80 hover:opacity-80"
-                    : "bg-white/5 border-l-2 border-l-white/40 text-neutral-300 hover:opacity-80"
+                    ? "bg-black/10 dark:bg-white/15 border-l-2 border-l-current text-inherit opacity-90 hover:opacity-100"
+                    : "bg-black/5 dark:bg-white/10 border-l-2 border-l-current text-inherit opacity-90 hover:opacity-100"
                 }`}
               >
                 <span className="text-[10px] uppercase tracking-wider font-bold block mb-0.5 opacity-70">
@@ -226,7 +226,7 @@ const MessageBubble = React.memo(
             {/* Message Timestamp & Status Indicator */}
             <div
               className={`flex items-center justify-end gap-1.5 mt-1 ${
-                isMine && !isFailed ? "text-neutral-500" : "text-neutral-500"
+                isMine && !isFailed ? "text-bubble-mine-text/70" : "text-bubble-other-text/70"
               }`}
             >
               <span className="text-[10px] tabular-nums select-none font-normal">
@@ -237,24 +237,24 @@ const MessageBubble = React.memo(
               {isMine && (
                 <span className="inline-flex items-center select-none" title={item.status || "sent"}>
                   {isSending ? (
-                    <Clock className="w-3 h-3 text-neutral-400 animate-pulse" />
+                    <Clock className="w-3 h-3 text-bubble-mine-text/60 animate-pulse" />
                   ) : isFailed ? (
                     <div className="flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3 text-red-400" />
+                      <AlertCircle className="w-3 h-3 text-red-500" />
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           onRetryMessage(item);
                         }}
-                        className="text-[10px] text-red-400 hover:underline flex items-center gap-0.5"
+                        className="text-[10px] text-red-500 hover:underline flex items-center gap-0.5"
                       >
                         <RotateCcw className="w-2.5 h-2.5" />
                         <span>Retry</span>
                       </button>
                     </div>
                   ) : (
-                    <Check className="w-3 h-3 text-neutral-400" />
+                    <Check className="w-3 h-3 text-bubble-mine-text/80" />
                   )}
                 </span>
               )}
@@ -426,7 +426,7 @@ export default function ConversationView({
   // ── Fetch messages (Initial batch of 30, background revalidation) ───────────
   const fetchMessages = useCallback(async () => {
     const cached = privateChatCache.getRoom(roomId);
-    if (!cached || cached.messages.length === 0) {
+    if (!cached || cached.messages.length === 0) {  
       setMessagesLoading(true);
     }
     setMessagesError("");
@@ -941,15 +941,15 @@ export default function ConversationView({
 
   // ── Main Render ─────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-full bg-black overflow-hidden min-w-0">
+    <div className="flex flex-col h-full bg-background overflow-hidden min-w-0 text-foreground">
       {/* Header */}
-      <header className="h-14 px-4 border-b border-white/5 bg-black/90 backdrop-blur-md flex items-center justify-between shrink-0 z-10">
+      <header className="h-14 px-4 border-b border-border bg-surface/95 backdrop-blur-md flex items-center justify-between shrink-0 z-10">
         <div className="flex items-center gap-3 min-w-0">
           {onBack && (
             <button
               type="button"
               onClick={onBack}
-              className="p-1.5 rounded-full border border-white/10 text-neutral-400 hover:text-white hover:bg-white/5 transition-colors"
+              className="p-1.5 rounded-full border border-border text-secondary hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
               aria-label="Back to conversations"
               title="Back"
             >
@@ -957,7 +957,7 @@ export default function ConversationView({
             </button>
           )}
 
-          <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 text-neutral-300 flex items-center justify-center text-xs font-medium shrink-0">
+          <div className="w-8 h-8 rounded-full bg-neutral-100 dark:bg-neutral-800 border border-border text-secondary flex items-center justify-center text-xs font-medium shrink-0">
             {isDeveloperRoom ? <Wrench className="w-4 h-4" /> : <User className="w-4 h-4" />}
           </div>
 
@@ -967,13 +967,13 @@ export default function ConversationView({
             ) : (
               <>
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-sm text-white truncate">{displayName}</span>
+                  <span className="font-semibold text-sm text-foreground truncate">{displayName}</span>
                   {isDeveloperRoom ? (
-                    <span className="border border-white/10 text-neutral-400 bg-transparent text-[10px] font-medium tracking-wider uppercase px-2 py-0.5 rounded-full shrink-0">
+                    <span className="border border-border text-muted bg-surface/50 text-[10px] font-medium tracking-wider uppercase px-2 py-0.5 rounded-full shrink-0">
                       Developer Chat
                     </span>
                   ) : (
-                    <span className="border border-white/10 text-neutral-400 bg-transparent text-[10px] font-medium tracking-wider uppercase px-2 py-0.5 rounded-full shrink-0">
+                    <span className="border border-border text-muted bg-surface/50 text-[10px] font-medium tracking-wider uppercase px-2 py-0.5 rounded-full shrink-0">
                       Private 1-on-1
                     </span>
                   )}
@@ -981,10 +981,10 @@ export default function ConversationView({
                 <div className="flex items-center gap-1.5">
                   {!isDeveloperRoom && isOtherUserOnline && (
                     <span className="flex h-1.5 w-1.5 relative flex-shrink-0" title="Online">
-                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-neutral-300" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
                     </span>
                   )}
-                  <p className="text-[11px] text-neutral-500 font-normal truncate">
+                  <p className="text-[11px] text-muted font-normal truncate">
                     {isDeveloperRoom
                       ? "Official Developer Support"
                       : isOtherUserOnline
@@ -1003,10 +1003,10 @@ export default function ConversationView({
             <button
               type="button"
               onClick={() => setIsRenameModalOpen(true)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border border-white/10 text-neutral-400 hover:text-white hover:bg-white/5 transition-colors"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border border-border text-secondary hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
               title="Rename contact locally"
             >
-              <Pencil className="w-3.5 h-3.5 text-neutral-400" />
+              <Pencil className="w-3.5 h-3.5 text-muted" />
               <span className="hidden sm:inline">Rename</span>
             </button>
           )}
@@ -1015,7 +1015,7 @@ export default function ConversationView({
             type="button"
             onClick={fetchMessages}
             disabled={messagesLoading}
-            className="p-2 text-neutral-400 hover:text-white rounded-full hover:bg-white/5 transition-colors disabled:opacity-40"
+            className="p-2 text-secondary hover:text-foreground rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors disabled:opacity-40"
             aria-label="Refresh messages"
             title="Refresh messages"
           >
@@ -1026,14 +1026,14 @@ export default function ConversationView({
             <button
               type="button"
               onClick={() => setIsMenuOpen((prev) => !prev)}
-              className="p-2 text-neutral-400 hover:text-white rounded-full hover:bg-white/5 transition-colors"
+              className="p-2 text-secondary hover:text-foreground rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
               aria-label="More options"
             >
               <MoreVertical className="w-4 h-4" />
             </button>
 
             {isMenuOpen && (
-              <div className="absolute right-0 mt-1.5 z-30 w-48 rounded-2xl border border-white/10 bg-neutral-900 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 py-1">
+              <div className="absolute right-0 mt-1.5 z-30 w-48 rounded-2xl border border-border bg-surface shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 py-1">
                 {!isDeveloperRoom && (
                   <button
                     type="button"
@@ -1041,9 +1041,9 @@ export default function ConversationView({
                       setIsMenuOpen(false);
                       setIsRenameModalOpen(true);
                     }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-neutral-200 hover:bg-white/5 transition-colors text-left"
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors text-left"
                   >
-                    <UserPen className="w-3.5 h-3.5 text-neutral-400" />
+                    <UserPen className="w-3.5 h-3.5 text-muted" />
                     <span>Rename Contact</span>
                   </button>
                 )}
@@ -1053,9 +1053,9 @@ export default function ConversationView({
                     setIsMenuOpen(false);
                     setIsInfoModalOpen(true);
                   }}
-                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-neutral-200 hover:bg-white/5 transition-colors text-left"
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors text-left"
                 >
-                  <Info className="w-3.5 h-3.5 text-neutral-400" />
+                  <Info className="w-3.5 h-3.5 text-muted" />
                   <span>Anonymous Chat Info</span>
                 </button>
               </div>
@@ -1075,7 +1075,7 @@ export default function ConversationView({
             }
           }
         }}
-        className="flex-1 min-h-0 w-full p-4 sm:p-6 space-y-4 bg-black"
+        className="flex-1 min-h-0 w-full p-4 sm:p-6 space-y-4 bg-background"
         aria-label="Conversation messages"
       >
         {/* Top Sentinel for Infinite Scroll Intersection Observer */}
@@ -1088,7 +1088,7 @@ export default function ConversationView({
               type="button"
               onClick={handleLoadMore}
               disabled={isLoadingMore}
-              className="flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 text-[11px] text-neutral-400 font-medium hover:text-white hover:bg-white/5 transition-colors disabled:opacity-40"
+              className="flex items-center gap-2 px-3 py-1 rounded-full border border-border text-[11px] text-muted font-medium hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors disabled:opacity-40 shadow-xs"
             >
               {isLoadingMore ? (
                 <>
@@ -1108,11 +1108,11 @@ export default function ConversationView({
         {/* Messages Error */}
         {!messagesLoading && messagesError && messages.length === 0 && (
           <div className="flex flex-col items-center justify-center py-10 text-center space-y-2">
-            <p className="text-xs text-neutral-400 font-normal">{messagesError}</p>
+            <p className="text-xs text-muted font-normal">{messagesError}</p>
             <button
               type="button"
               onClick={fetchMessages}
-              className="px-3 py-1 bg-white text-black hover:bg-neutral-200 text-xs font-semibold rounded-full"
+              className="px-3.5 py-1.5 bg-foreground text-background hover:opacity-90 text-xs font-semibold rounded-full transition-opacity"
             >
               Try again
             </button>
@@ -1122,12 +1122,12 @@ export default function ConversationView({
         {/* Empty State */}
         {!messagesLoading && !messagesError && messages.length === 0 && (
           <div className="flex flex-col items-center justify-center flex-1 py-16 text-center select-none space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 text-neutral-400 flex items-center justify-center mx-auto">
+            <div className="w-12 h-12 rounded-2xl bg-neutral-100 dark:bg-neutral-800 border border-border text-secondary flex items-center justify-center mx-auto">
               <MessageSquare className="w-5 h-5" />
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-medium text-white">Start the conversation</p>
-              <p className="text-xs text-neutral-500 font-normal max-w-xs mx-auto">
+              <p className="text-sm font-semibold text-foreground">Start the conversation</p>
+              <p className="text-xs text-muted font-normal max-w-xs mx-auto">
                 Send a message to start chatting anonymously in this private thread.
               </p>
             </div>
@@ -1173,7 +1173,7 @@ export default function ConversationView({
                 }
                 setShowNewMessageBanner(false);
               }}
-              className="pointer-events-auto flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white text-black text-xs font-semibold shadow-lg hover:bg-neutral-200 transition-transform hover:scale-105 active:scale-95"
+              className="pointer-events-auto flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-foreground text-background text-xs font-semibold shadow-lg hover:opacity-90 transition-transform hover:scale-105 active:scale-95"
             >
               <span>New messages</span>
             </button>
@@ -1182,16 +1182,16 @@ export default function ConversationView({
       </ScrollArea>
 
       {/* Composer */}
-      <div className="border-t border-white/5 bg-black shrink-0">
+      <div className="border-t border-border bg-surface shrink-0">
         {/* Reply Preview Banner */}
         {replyingTo && (
-          <div className="border-b border-white/5 bg-neutral-900/60 px-4 py-2 flex items-center justify-between gap-3 animate-in slide-in-from-bottom-2 duration-150">
-            <div className="flex items-start gap-2.5 min-w-0 border-l-2 border-l-white pl-2.5">
+          <div className="border-b border-border bg-neutral-50 dark:bg-neutral-900/60 px-4 py-2 flex items-center justify-between gap-3 animate-in slide-in-from-bottom-2 duration-150">
+            <div className="flex items-start gap-2.5 min-w-0 border-l-2 border-l-foreground pl-2.5">
               <div className="min-w-0 flex-1">
-                <span className="text-[10px] uppercase tracking-wider font-semibold text-neutral-400">
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-muted">
                   Replying to Message
                 </span>
-                <p className="text-xs text-neutral-300 line-clamp-1 leading-relaxed">
+                <p className="text-xs text-foreground line-clamp-1 leading-relaxed">
                   {replyingTo.content}
                 </p>
               </div>
@@ -1199,7 +1199,7 @@ export default function ConversationView({
             <button
               type="button"
               onClick={() => setReplyingTo(null)}
-              className="p-1 text-neutral-400 hover:text-white rounded-md transition-colors"
+              className="p-1 text-muted hover:text-foreground rounded-md transition-colors"
               aria-label="Cancel reply"
             >
               <X className="w-4 h-4" />
@@ -1213,7 +1213,7 @@ export default function ConversationView({
               e.preventDefault();
               handleSend();
             }}
-            className="flex items-center w-full bg-white/5 border border-white/10 rounded-full px-4 py-2 gap-2 focus-within:border-white/20 transition-colors"
+            className="flex items-center w-full bg-background border border-border rounded-full px-4 py-2 gap-2 focus-within:border-foreground/30 focus-within:ring-1 focus-within:ring-foreground/10 transition-all shadow-xs"
           >
             <textarea
               ref={textareaRef}
@@ -1225,13 +1225,13 @@ export default function ConversationView({
               }
               maxLength={2000}
               rows={1}
-              className="flex-1 bg-transparent text-white placeholder-neutral-500 text-xs sm:text-sm focus:outline-none resize-none min-h-[22px] max-h-[120px] py-1 leading-normal"
+              className="flex-1 bg-transparent text-foreground placeholder:text-muted text-xs sm:text-sm focus:outline-none resize-none min-h-[22px] max-h-[120px] py-1 leading-normal"
             />
 
             <button
               type="submit"
               disabled={!inputText.trim()}
-              className="text-neutral-400 hover:text-white transition-colors p-2 rounded-full disabled:opacity-30 flex items-center justify-center shrink-0"
+              className="text-secondary hover:text-foreground transition-colors p-2 rounded-full disabled:opacity-30 flex items-center justify-center shrink-0"
               aria-label="Send message"
             >
               <Send className="w-4 h-4" />
@@ -1239,7 +1239,7 @@ export default function ConversationView({
           </form>
 
           {sendError && (
-            <p className="text-[11px] text-neutral-400 font-normal mt-1.5 px-4">{sendError}</p>
+            <p className="text-[11px] text-red-500 font-normal mt-1.5 px-4">{sendError}</p>
           )}
         </div>
       </div>
@@ -1267,7 +1267,7 @@ export default function ConversationView({
       {actionSheetMsg && (
         <>
           <div
-            className="fixed inset-0 z-40 bg-black/70 backdrop-blur-xs"
+            className="fixed inset-0 z-40 bg-black/50 dark:bg-black/70 backdrop-blur-xs"
             onClick={() => setActionSheetMsg(null)}
             aria-hidden="true"
           />
@@ -1275,11 +1275,11 @@ export default function ConversationView({
             role="dialog"
             aria-modal="true"
             aria-label="Message actions"
-            className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl bg-neutral-900 border-t border-white/10 shadow-2xl animate-in slide-in-from-bottom-4 duration-200 pb-[env(safe-area-inset-bottom)] text-white"
+            className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl bg-surface border-t border-border shadow-2xl animate-in slide-in-from-bottom-4 duration-200 pb-[env(safe-area-inset-bottom)] text-foreground"
           >
             <div className="flex flex-col">
               <div className="flex justify-center py-2.5">
-                <div className="w-8 h-1 rounded-full bg-white/20" />
+                <div className="w-8 h-1 rounded-full bg-neutral-300 dark:bg-neutral-700" />
               </div>
               <button
                 type="button"
@@ -1287,16 +1287,16 @@ export default function ConversationView({
                   handleInitiateReply(actionSheetMsg);
                   setActionSheetMsg(null);
                 }}
-                className="flex items-center gap-3 w-full px-5 py-3.5 text-left text-sm font-medium text-white hover:bg-white/5 transition-colors"
+                className="flex items-center gap-3 w-full px-5 py-3.5 text-left text-sm font-medium text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
               >
-                <Reply className="w-4 h-4 text-neutral-400" />
+                <Reply className="w-4 h-4 text-muted" />
                 <span>Reply</span>
               </button>
-              <div className="h-px bg-white/5 mx-5 my-1" />
+              <div className="h-px bg-border mx-5 my-1" />
               <button
                 type="button"
                 onClick={() => setActionSheetMsg(null)}
-                className="flex items-center justify-center w-full px-5 py-3.5 text-sm font-medium text-neutral-400 hover:text-white hover:bg-white/5 transition-colors"
+                className="flex items-center justify-center w-full px-5 py-3.5 text-sm font-medium text-muted hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
               >
                 Cancel
               </button>

@@ -218,6 +218,12 @@ export class PrivateRoomService {
       room.lastMessage = lastMessageMap.get(room.id) || null;
     }
 
+    rooms.sort((a, b) => {
+      const timeA = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : new Date(a.updatedAt).getTime();
+      const timeB = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : new Date(b.updatedAt).getTime();
+      return (isNaN(timeB) ? 0 : timeB) - (isNaN(timeA) ? 0 : timeA);
+    });
+
     return rooms;
   }
 
@@ -358,6 +364,12 @@ export class PrivateRoomService {
       room.unreadCount = unreadCountMap.get(room.id) || 0;
       room.lastMessage = lastMessageMap.get(room.id) || null;
     }
+
+    rooms.sort((a, b) => {
+      const timeA = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : new Date(a.updatedAt).getTime();
+      const timeB = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : new Date(b.updatedAt).getTime();
+      return (isNaN(timeB) ? 0 : timeB) - (isNaN(timeA) ? 0 : timeA);
+    });
 
     return rooms;
   }

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { getApiUrl } from "@/app/utils/api";
 import { adminFetch } from "@/app/services/admin-auth";
 import AdminShell from "@/app/admin/components/AdminShell";
-import AdminPageHeader from "@/app/admin/components/AdminPageHeader";
 import { FileText, RefreshCw, AlertCircle, Clock, CheckCircle2 } from "lucide-react";
 
 type ReviewerRequest = {
@@ -54,7 +53,27 @@ export default function AdminRequestsPage() {
   };
 
   useEffect(() => {
-    fetchRequests();
+    let isMounted = true;
+    adminFetch(getApiUrl("/api/reviewers/requests"), { cache: "no-store" })
+      .then(async (res) => {
+        const json = await res.json();
+        if (!isMounted) return;
+        if (res.ok) {
+          setRequests(json.data || []);
+        } else {
+          setError(json.message || "Failed to load requests.");
+        }
+        setIsLoading(false);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setError("Failed to connect to the server.");
+        setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const showToast = (message: string, type: "success" | "error" = "success") => {
@@ -173,21 +192,24 @@ export default function AdminRequestsPage() {
         </div>
       )}
 
-      <AdminPageHeader
-        title="Reviewer Requests"
-        description="Review and manage community submissions for new reviewers."
-        actions={
-          <button
-            type="button"
-            onClick={fetchRequests}
-            disabled={isLoading}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl border border-border bg-surface text-secondary hover:text-foreground hover:bg-elevated transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
-            <span>Refresh</span>
-          </button>
-        }
-      />
+      {/* Top Action Bar */}
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <div className="flex items-center gap-2">
+          <FileText className="w-4 h-4 text-secondary" />
+          <span className="text-xs font-semibold text-muted">
+            {requests.length} {requests.length === 1 ? "request" : "requests"} total
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={fetchRequests}
+          disabled={isLoading}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border border-border bg-surface text-secondary hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors disabled:opacity-50 cursor-pointer"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
+          <span>Refresh</span>
+        </button>
+      </div>
 
       {/* Loading / Error / Content */}
       {isLoading ? (

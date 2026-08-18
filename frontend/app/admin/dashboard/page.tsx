@@ -5,7 +5,6 @@ import Link from "next/link";
 import { getApiUrl } from "@/app/utils/api";
 import { adminFetch } from "@/app/services/admin-auth";
 import AdminShell from "@/app/admin/components/AdminShell";
-import AdminPageHeader from "@/app/admin/components/AdminPageHeader";
 import {
   FileText,
   GitPullRequest,
@@ -83,8 +82,33 @@ export default function AdminDashboardPage() {
   }, []);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
+    let isMounted = true;
+    Promise.all([
+      adminFetch(getApiUrl("/api/reviewers/requests"), { cache: "no-store" }),
+      adminFetch(getApiUrl("/api/reviewers/update-requests"), { cache: "no-store" }),
+    ])
+      .then(async ([reqRes, updateRes]) => {
+        const reqJson = await reqRes.json();
+        const updateJson = await updateRes.json();
+        if (!isMounted) return;
+        if (!reqRes.ok || !updateRes.ok) {
+          setError("Failed to fetch operational activity data.");
+        } else {
+          setCreationRequests(Array.isArray(reqJson.data) ? reqJson.data : []);
+          setUpdateRequests(Array.isArray(updateJson.data) ? updateJson.data : []);
+        }
+        setIsLoading(false);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setError("Could not connect to the server. Please verify network status and try again.");
+        setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Derived operational statistics from real backend APIs
   const pendingRequestsCount = creationRequests.filter(
@@ -129,21 +153,23 @@ export default function AdminDashboardPage() {
       pendingRequestsCount={pendingRequestsCount}
       pendingUpdateRequestsCount={pendingUpdateRequestsCount}
     >
-      <AdminPageHeader
-        title="Admin Dashboard"
-        description="Overview of pending community requests and operational activity."
-        actions={
-          <button
-            type="button"
-            onClick={fetchDashboardData}
-            disabled={isLoading}
-            className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl border border-border bg-surface text-secondary hover:text-foreground hover:bg-elevated transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
-            <span>Refresh Data</span>
-          </button>
-        }
-      />
+      {/* Top Action Bar */}
+      <div className="flex items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-muted">
+            Live operational overview
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={fetchDashboardData}
+          disabled={isLoading}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border border-border bg-surface text-secondary hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors disabled:opacity-50 cursor-pointer"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
+          <span>Refresh Data</span>
+        </button>
+      </div>
 
       {error ? (
         <div className="p-6 rounded-2xl bg-red-950/30 border border-red-800/40 text-center space-y-4 max-w-lg mx-auto my-8">

@@ -4,13 +4,28 @@ import { adminFetch } from "./admin-auth";
 
 export type BroadcastDeliveryMode = "ANNOUNCEMENT" | "DIRECT_MESSAGE";
 
+export type BroadcastCategory =
+  | "FEATURE_UPDATE"
+  | "COMMUNITY"
+  | "IMPORTANT"
+  | "SYSTEM"
+  | "PRODUCT_UPDATE";
+
+export type BroadcastPriority = "NORMAL" | "IMPORTANT" | "HIGH" | "CRITICAL";
+
+export type BroadcastAudience = "ALL_USERS";
+
 export interface IPublicBroadcast {
   id: string;
   _id?: string;
+  title?: string;
   content: string;
   type: "SYSTEM_BROADCAST";
+  category?: BroadcastCategory;
+  priority?: BroadcastPriority;
   audience: "ALL_USERS";
   deliveryMode?: BroadcastDeliveryMode;
+  isPinned?: boolean;
   senderName: string;
   secondaryLabel: string;
   createdAt: string;
@@ -21,10 +36,14 @@ export interface IAdminBroadcast {
   id: string;
   _id?: string;
   adminId?: string;
+  title?: string;
   content: string;
   type: "SYSTEM_BROADCAST";
+  category?: BroadcastCategory;
+  priority?: BroadcastPriority;
   audience: "ALL_USERS";
   deliveryMode?: BroadcastDeliveryMode;
+  isPinned?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -98,19 +117,42 @@ export async function getAdminBroadcastById(id: string): Promise<IAdminBroadcast
   return data.broadcast;
 }
 
+export interface CreateAdminBroadcastPayload {
+  title?: string;
+  content: string;
+  category?: BroadcastCategory;
+  priority?: BroadcastPriority;
+  audience?: BroadcastAudience;
+  deliveryMode?: BroadcastDeliveryMode;
+}
+
 /**
  * Create a new official broadcast announcement or mass direct message (Admin only).
  */
 export async function createAdminBroadcast(
-  content: string,
-  deliveryMode: BroadcastDeliveryMode = "ANNOUNCEMENT"
+  payloadOrContent: string | CreateAdminBroadcastPayload,
+  legacyDeliveryMode: BroadcastDeliveryMode = "ANNOUNCEMENT"
 ): Promise<IAdminBroadcast> {
+  let body: Record<string, unknown>;
+  if (typeof payloadOrContent === "string") {
+    body = { content: payloadOrContent, deliveryMode: legacyDeliveryMode };
+  } else {
+    body = {
+      title: payloadOrContent.title?.trim() || undefined,
+      content: payloadOrContent.content.trim(),
+      category: payloadOrContent.category || "COMMUNITY",
+      priority: payloadOrContent.priority || "NORMAL",
+      audience: "ALL_USERS",
+      deliveryMode: payloadOrContent.deliveryMode || "ANNOUNCEMENT",
+    };
+  }
+
   const res = await adminFetch(getApiUrl("/api/admin/broadcasts"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ content, deliveryMode }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {

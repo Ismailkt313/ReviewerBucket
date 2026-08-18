@@ -4,11 +4,23 @@ export type BroadcastMessageType = "SYSTEM_BROADCAST";
 export type BroadcastAudience = "ALL_USERS";
 export type BroadcastDeliveryMode = "ANNOUNCEMENT" | "DIRECT_MESSAGE";
 
+export type BroadcastCategory =
+  | "FEATURE_UPDATE"
+  | "COMMUNITY"
+  | "IMPORTANT"
+  | "SYSTEM"
+  | "PRODUCT_UPDATE";
+
+export type BroadcastPriority = "NORMAL" | "IMPORTANT" | "HIGH" | "CRITICAL";
+
 export interface IBroadcastDoc extends Document {
   _id: Types.ObjectId;
   adminId: string;
+  title: string;
   content: string;
   type: BroadcastMessageType;
+  category: BroadcastCategory;
+  priority: BroadcastPriority;
   audience: BroadcastAudience;
   deliveryMode: BroadcastDeliveryMode;
   createdAt: Date;
@@ -19,8 +31,11 @@ export interface IBroadcast {
   id: string;
   _id?: string;
   adminId: string;
+  title: string;
   content: string;
   type: BroadcastMessageType;
+  category: BroadcastCategory;
+  priority: BroadcastPriority;
   audience: BroadcastAudience;
   deliveryMode: BroadcastDeliveryMode;
   createdAt: string;
@@ -30,8 +45,11 @@ export interface IBroadcast {
 export interface IPublicBroadcast {
   id: string;
   _id?: string;
+  title: string;
   content: string;
   type: BroadcastMessageType;
+  category: BroadcastCategory;
+  priority: BroadcastPriority;
   audience: BroadcastAudience;
   deliveryMode: BroadcastDeliveryMode;
   senderName: string;
@@ -41,7 +59,11 @@ export interface IPublicBroadcast {
 }
 
 export interface CreateBroadcastDTO {
+  title?: string;
   content: string;
+  category?: BroadcastCategory;
+  priority?: BroadcastPriority;
+  audience?: BroadcastAudience;
   deliveryMode?: BroadcastDeliveryMode;
 }
 

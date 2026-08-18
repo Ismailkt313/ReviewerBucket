@@ -1,19 +1,33 @@
 import { BroadcastModel } from "./broadcast.model.js";
-import type { IBroadcastDoc, BroadcastDeliveryMode } from "./broadcast.types.js";
+import type {
+  IBroadcastDoc,
+  BroadcastCategory,
+  BroadcastPriority,
+  BroadcastAudience,
+  BroadcastDeliveryMode
+} from "./broadcast.types.js";
+
+export interface CreateBroadcastRepoParams {
+  adminId: string;
+  title?: string;
+  content: string;
+  category?: BroadcastCategory;
+  priority?: BroadcastPriority;
+  audience?: BroadcastAudience;
+  deliveryMode?: BroadcastDeliveryMode;
+}
 
 export class BroadcastRepository {
-  async create(
-    adminId: string,
-    content: string,
-    audience: "ALL_USERS" = "ALL_USERS",
-    deliveryMode: BroadcastDeliveryMode = "ANNOUNCEMENT"
-  ): Promise<IBroadcastDoc> {
+  async create(params: CreateBroadcastRepoParams): Promise<IBroadcastDoc> {
     const broadcast = new BroadcastModel({
-      adminId,
-      content,
+      adminId: params.adminId || "admin",
+      title: params.title || "",
+      content: params.content,
       type: "SYSTEM_BROADCAST",
-      audience,
-      deliveryMode
+      category: params.category || "COMMUNITY",
+      priority: params.priority || "NORMAL",
+      audience: "ALL_USERS",
+      deliveryMode: params.deliveryMode || "ANNOUNCEMENT"
     });
 
     return await broadcast.save();

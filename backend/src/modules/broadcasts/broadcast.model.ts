@@ -9,6 +9,13 @@ const broadcastSchema = new Schema<IBroadcastDoc>(
       default: "admin",
       trim: true
     },
+    title: {
+      type: String,
+      required: false,
+      default: "",
+      maxlength: 200,
+      trim: true
+    },
     content: {
       type: String,
       required: true,
@@ -20,6 +27,24 @@ const broadcastSchema = new Schema<IBroadcastDoc>(
       type: String,
       enum: ["SYSTEM_BROADCAST"],
       default: "SYSTEM_BROADCAST",
+      required: true
+    },
+    category: {
+      type: String,
+      enum: [
+        "FEATURE_UPDATE",
+        "COMMUNITY",
+        "IMPORTANT",
+        "SYSTEM",
+        "PRODUCT_UPDATE"
+      ],
+      default: "COMMUNITY",
+      required: true
+    },
+    priority: {
+      type: String,
+      enum: ["NORMAL", "IMPORTANT", "HIGH", "CRITICAL"],
+      default: "NORMAL",
       required: true
     },
     audience: {
@@ -40,7 +65,8 @@ const broadcastSchema = new Schema<IBroadcastDoc>(
   }
 );
 
-// Index for chronological ordering of broadcasts
+// Indexes for chronological ordering and efficient public query execution
 broadcastSchema.index({ createdAt: -1 });
+broadcastSchema.index({ audience: 1, deliveryMode: 1, createdAt: -1 });
 
 export const BroadcastModel = model<IBroadcastDoc>("Broadcast", broadcastSchema);

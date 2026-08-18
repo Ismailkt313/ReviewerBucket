@@ -6,8 +6,36 @@ import type {
   IBroadcast,
   IPublicBroadcast,
   IBroadcastDoc,
+  BroadcastCategory,
+  BroadcastPriority,
+  BroadcastAudience,
   BroadcastDeliveryMode
 } from "./broadcast.types.js";
+
+const VALID_CATEGORIES = new Set<BroadcastCategory>([
+  "FEATURE_UPDATE",
+  "COMMUNITY",
+  "IMPORTANT",
+  "SYSTEM",
+  "PRODUCT_UPDATE"
+]);
+
+const VALID_PRIORITIES = new Set<BroadcastPriority>([
+  "NORMAL",
+  "IMPORTANT",
+  "HIGH",
+  "CRITICAL"
+]);
+
+export interface CreateBroadcastServiceParams {
+  adminId: string;
+  title?: string;
+  content: string;
+  category?: BroadcastCategory;
+  priority?: BroadcastPriority;
+  audience?: BroadcastAudience;
+  deliveryMode?: BroadcastDeliveryMode;
+}
 
 export class BroadcastService {
   private repository = new BroadcastRepository();
@@ -18,9 +46,12 @@ export class BroadcastService {
       id: doc._id.toString(),
       _id: doc._id.toString(),
       adminId: doc.adminId,
+      title: doc.title || "",
       content: doc.content,
-      type: doc.type,
-      audience: doc.audience,
+      type: doc.type || "SYSTEM_BROADCAST",
+      category: doc.category || "COMMUNITY",
+      priority: doc.priority || "NORMAL",
+      audience: doc.audience || "ALL_USERS",
       deliveryMode: doc.deliveryMode || "ANNOUNCEMENT",
       createdAt: doc.createdAt.toISOString(),
       updatedAt: doc.updatedAt.toISOString()
@@ -31,9 +62,12 @@ export class BroadcastService {
     return {
       id: doc._id.toString(),
       _id: doc._id.toString(),
+      title: doc.title || "",
       content: doc.content,
-      type: doc.type,
-      audience: doc.audience,
+      type: doc.type || "SYSTEM_BROADCAST",
+      category: doc.category || "COMMUNITY",
+      priority: doc.priority || "NORMAL",
+      audience: doc.audience || "ALL_USERS",
       deliveryMode: doc.deliveryMode || "ANNOUNCEMENT",
       senderName: "Reviewer Bucket",
       secondaryLabel: "Official announcement",
@@ -42,35 +76,97 @@ export class BroadcastService {
     };
   }
 
+  /**
+   * Create and persist a new official broadcast announcement or mass message.
+   * Supports both object params and legacy positional params for seamless backward compatibility.
+   */
   async createBroadcast(
-    adminId: string,
-    content: string,
-    deliveryMode: BroadcastDeliveryMode = "ANNOUNCEMENT"
+    adminIdOrParams: string | CreateBroadcastServiceParams,
+    contentParam?: string,
+    deliveryModeParam?: BroadcastDeliveryMode
   ): Promise<IBroadcast> {
+    let adminId: string;
+    let title: string | undefined;
+    let content: string;
+    let category: BroadcastCategory | undefined;
+    let priority: BroadcastPriority | undefined;
+    let audience: BroadcastAudience | undefined;
+    let deliveryMode: BroadcastDeliveryMode | undefined;
+
+    if (typeof adminIdOrParams === "object" && adminIdOrParams !== null) {
+      adminId = adminIdOrParams.adminId;
+      title = adminIdOrParams.title;
+      content = adminIdOrParams.content;
+      category = adminIdOrParams.category;
+      priority = adminIdOrParams.priority;
+      audience = adminIdOrParams.audience;
+      deliveryMode = adminIdOrParams.deliveryMode;
+    } else {
+      adminId = adminIdOrParams;
+      content = contentParam || "";
+      deliveryMode = deliveryModeParam;
+    }
+
+    // 1. Content validation
     if (typeof content !== "string" || content.trim().length === 0) {
       throw new AppError(400, "Broadcast content cannot be empty");
     }
 
     const trimmedContent = content.trim();
-
     if (trimmedContent.length > 2000) {
       throw new AppError(400, "Broadcast content cannot exceed 2000 characters");
     }
 
-    const trimmedAdminId = (adminId || "admin").trim();
+    // 2. Title validation (if provided)
+    let trimmedTitle = "";
+    if (title !== undefined && title !== null) {
+      if (typeof title !== "string") {
+        throw new AppError(400, "Broadcast title must be a string");
+      }
+      trimmedTitle = title.trim();
+      if (title.length > 0 && trimmedTitle.length === 0) {
+        throw new AppError(400, "Broadcast title cannot be empty");
+      }
+      if (trimmedTitle.length > 200) {
+        throw new AppError(400, "Broadcast title cannot exceed 200 characters");
+      }
+    }
 
-    // 1. Persist broadcast record
-    const doc = await this.repository.create(
-      trimmedAdminId,
-      trimmedContent,
-      "ALL_USERS",
-      deliveryMode
-    );
+    // 3. Category validation
+    const resolvedCategory: BroadcastCategory = category || "COMMUNITY";
+    if (!VALID_CATEGORIES.has(resolvedCategory)) {
+      throw new AppError(400, "Invalid broadcast category. Must be one of: FEATURE_UPDATE, COMMUNITY, IMPORTANT, SYSTEM, PRODUCT_UPDATE.");
+    }
+
+    // 4. Priority validation
+    const resolvedPriority: BroadcastPriority = priority || "NORMAL";
+    if (!VALID_PRIORITIES.has(resolvedPriority)) {
+      throw new AppError(400, "Invalid broadcast priority. Must be one of: NORMAL, IMPORTANT, HIGH, CRITICAL.");
+    }
+
+    // 5. Audience validation
+    if (audience && audience !== "ALL_USERS") {
+      throw new AppError(400, "Invalid broadcast audience. Only ALL_USERS is supported.");
+    }
+
+    const trimmedAdminId = (adminId || "admin").trim();
+    const resolvedDeliveryMode: BroadcastDeliveryMode = deliveryMode || "ANNOUNCEMENT";
+
+    // 6. Persist broadcast record BEFORE socket emission
+    const doc = await this.repository.create({
+      adminId: trimmedAdminId,
+      title: trimmedTitle,
+      content: trimmedContent,
+      category: resolvedCategory,
+      priority: resolvedPriority,
+      audience: "ALL_USERS",
+      deliveryMode: resolvedDeliveryMode
+    });
 
     const publicBroadcast = this.toPublicBroadcast(doc);
 
-    // 2. Deliver based on delivery mode
-    if (deliveryMode === "DIRECT_MESSAGE") {
+    // 7. Deliver based on delivery mode
+    if (resolvedDeliveryMode === "DIRECT_MESSAGE") {
       // Deliver as personal direct message into every user's developer chat
       try {
         await this.privateMessageService.sendMassAdminMessage(trimmedContent);
@@ -94,7 +190,7 @@ export class BroadcastService {
         if (io) {
           io.to("audience:eligible_users").to("user:admin").emit("broadcast:new", publicBroadcast);
           io.to("audience:eligible_users").emit("broadcast:unread:increment", {
-            broadcastId: publicBroadcast.id || (publicBroadcast as any)._id
+            broadcastId: publicBroadcast.id || publicBroadcast._id
           });
         }
       } catch {

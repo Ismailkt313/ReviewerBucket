@@ -10,9 +10,17 @@ export async function createAdminBroadcast(
 ): Promise<void> {
   try {
     const adminId = req.admin?.sub || "admin";
-    const { content, deliveryMode } = req.body;
+    const { title, content, category, priority, audience, deliveryMode } = req.body;
 
-    const broadcast = await broadcastService.createBroadcast(adminId, content, deliveryMode);
+    const broadcast = await broadcastService.createBroadcast({
+      adminId,
+      title,
+      content,
+      category,
+      priority,
+      audience,
+      deliveryMode
+    });
 
     res.status(201).json({
       success: true,

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useVisualViewport } from "@/app/hooks/useVisualViewport";
 import { getAnonymousClientId } from "@/app/utils/anonymous-id";
+import ThemeToggle from "@/app/components/ThemeToggle";
 import ConversationList from "./ConversationList";
 import ConversationView from "./ConversationView";
 import BroadcastConversationView from "./BroadcastConversationView";
@@ -37,17 +38,17 @@ function SelectConversationPrompt({
   isOpeningDev,
 }: SelectConversationPromptProps) {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center text-center select-none px-8 py-12 bg-black">
+    <div className="flex flex-col flex-1 items-center justify-center text-center select-none px-8 py-12 bg-background">
       <div className="max-w-md w-full space-y-6">
-        <div className="mx-auto w-12 h-12 rounded-2xl bg-white/5 border border-white/10 text-neutral-300 flex items-center justify-center">
+        <div className="mx-auto w-12 h-12 rounded-2xl bg-neutral-100 dark:bg-neutral-800 border border-border text-secondary flex items-center justify-center">
           <MessageSquare className="w-5 h-5" />
         </div>
 
         <div className="space-y-1.5">
-          <h2 className="text-sm font-semibold text-white tracking-tight">
+          <h2 className="text-sm font-semibold text-foreground tracking-tight">
             Select a Conversation
           </h2>
-          <p className="text-xs text-neutral-500 font-normal leading-relaxed max-w-sm mx-auto">
+          <p className="text-xs text-muted font-normal leading-relaxed max-w-sm mx-auto">
             Choose a private 1-on-1 chat or review official announcements from the sidebar.
           </p>
         </div>
@@ -58,17 +59,17 @@ function SelectConversationPrompt({
             type="button"
             onClick={onOpenDeveloperChat}
             disabled={isOpeningDev}
-            className="p-3.5 rounded-2xl border border-white/5 bg-white/[0.02] hover:bg-white/5 hover:border-white/10 transition-colors text-left group focus:outline-none disabled:opacity-50"
+            className="p-3.5 rounded-2xl border border-border bg-surface hover:bg-neutral-100/70 dark:hover:bg-neutral-800/60 hover:border-foreground/20 transition-all text-left group focus:outline-none disabled:opacity-50 shadow-xs"
           >
             <div className="flex items-center gap-2 mb-1.5">
-              <div className="w-6 h-6 rounded-lg bg-white/5 border border-white/10 text-neutral-300 flex items-center justify-center">
+              <div className="w-6 h-6 rounded-lg bg-neutral-100 dark:bg-neutral-800 border border-border text-secondary group-hover:text-foreground flex items-center justify-center transition-colors">
                 <Wrench className="w-3.5 h-3.5" />
               </div>
-              <span className="text-xs font-medium text-white group-hover:text-white transition-colors">
+              <span className="text-xs font-semibold text-foreground transition-colors">
                 Message Developer
               </span>
             </div>
-            <p className="text-[11px] text-neutral-500 font-normal leading-snug">
+            <p className="text-[11px] text-muted group-hover:text-secondary font-normal leading-snug transition-colors">
               Get direct developer support or report an issue anonymously.
             </p>
           </button>
@@ -76,24 +77,24 @@ function SelectConversationPrompt({
           <button
             type="button"
             onClick={onSelectBroadcast}
-            className="p-3.5 rounded-2xl border border-white/5 bg-white/[0.02] hover:bg-white/5 hover:border-white/10 transition-colors text-left group focus:outline-none"
+            className="p-3.5 rounded-2xl border border-border bg-surface hover:bg-neutral-100/70 dark:hover:bg-neutral-800/60 hover:border-foreground/20 transition-all text-left group focus:outline-none shadow-xs"
           >
             <div className="flex items-center gap-2 mb-1.5">
-              <div className="w-6 h-6 rounded-lg bg-white/5 border border-white/10 text-neutral-300 flex items-center justify-center">
+              <div className="w-6 h-6 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 flex items-center justify-center">
                 <Megaphone className="w-3.5 h-3.5" />
               </div>
-              <span className="text-xs font-medium text-white group-hover:text-white transition-colors">
+              <span className="text-xs font-semibold text-foreground transition-colors">
                 Announcements
               </span>
             </div>
-            <p className="text-[11px] text-neutral-500 font-normal leading-snug">
+            <p className="text-[11px] text-muted group-hover:text-secondary font-normal leading-snug transition-colors">
               View official updates, feature releases, and system alerts.
             </p>
           </button>
         </div>
 
-        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-transparent border border-white/10 text-[11px] text-neutral-500 font-normal">
-          <ShieldCheck className="w-3.5 h-3.5 text-neutral-400" />
+        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface border border-border text-[11px] text-muted font-normal">
+          <ShieldCheck className="w-3.5 h-3.5 text-secondary" />
           <span>All chats are end-to-end anonymous and private.</span>
         </div>
       </div>
@@ -218,42 +219,45 @@ export default function PrivateChatsClient({ initialRoomId = null }: PrivateChat
   if (hasCheckedSession && !clientId) {
     return (
       <div
-        className="fixed top-0 left-0 w-full flex flex-col overflow-hidden bg-black text-white"
+        className="fixed top-0 left-0 w-full flex flex-col overflow-hidden bg-background text-foreground"
         style={{
           height: "var(--visual-viewport-height, 100dvh)",
           transform: "translateY(var(--visual-viewport-offset-top, 0px))",
         }}
       >
-        <header className="relative z-50 flex-shrink-0 border-b border-white/5 bg-black/90 backdrop-blur-md">
-          <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
-            <button
-              type="button"
-              onClick={handleBack}
-              className="p-1.5 rounded-full border border-white/10 text-neutral-400 hover:text-white hover:bg-white/5 transition-colors"
-              aria-label="Go back"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-            <h1 className="text-sm font-semibold text-white tracking-tight">
-              Private Chats
-            </h1>
+        <header className="relative z-50 flex-shrink-0 border-b border-border bg-surface/95 backdrop-blur-md">
+          <div className="flex h-14 items-center justify-between gap-3 px-4 sm:px-6">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleBack}
+                className="p-1.5 rounded-full border border-border text-secondary hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                aria-label="Go back"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+              <h1 className="text-sm font-semibold text-foreground tracking-tight">
+                Private Chats
+              </h1>
+            </div>
+            <ThemeToggle />
           </div>
         </header>
 
-        <div className="flex flex-col flex-1 items-center justify-center text-center select-none px-6 py-12 bg-black">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-neutral-400 mb-4">
+        <div className="flex flex-col flex-1 items-center justify-center text-center select-none px-6 py-12 bg-background">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-neutral-100 dark:bg-neutral-800 border border-border text-secondary mb-4">
             <ShieldAlert className="w-6 h-6" />
           </div>
-          <h2 className="text-sm font-semibold text-white mb-1">
+          <h2 className="text-sm font-semibold text-foreground mb-1">
             Anonymous session unavailable
           </h2>
-          <p className="text-xs text-neutral-500 font-normal max-w-[280px] mb-5 leading-relaxed">
+          <p className="text-xs text-muted font-normal max-w-[280px] mb-5 leading-relaxed">
             This browser no longer has access to the anonymous identity used for these private chats.
           </p>
           <button
             type="button"
             onClick={() => router.push("/")}
-            className="inline-flex items-center gap-1.5 rounded-full bg-white text-black hover:bg-neutral-200 text-xs font-semibold px-4 py-2 transition-colors focus-visible:outline-none"
+            className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background hover:opacity-90 text-xs font-semibold px-4 py-2 transition-opacity focus-visible:outline-none"
           >
             Return to Home
           </button>
@@ -264,20 +268,20 @@ export default function PrivateChatsClient({ initialRoomId = null }: PrivateChat
 
   return (
     <div
-      className="fixed top-0 left-0 w-full flex flex-col overflow-hidden bg-black text-white"
+      className="fixed top-0 left-0 w-full flex flex-col overflow-hidden bg-background text-foreground"
       style={{
         height: "var(--visual-viewport-height, 100dvh)",
         transform: "translateY(var(--visual-viewport-offset-top, 0px))",
       }}
     >
       {/* Top Navbar Header */}
-      <header className="relative z-50 flex-shrink-0 border-b border-white/5 bg-black/90 backdrop-blur-md">
+      <header className="relative z-50 flex-shrink-0 border-b border-border bg-surface/95 backdrop-blur-md">
         <div className="flex h-14 items-center justify-between gap-3 px-4 sm:px-6">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={handleBack}
-              className="p-1.5 rounded-full border border-white/10 text-neutral-400 hover:text-white hover:bg-white/5 transition-colors"
+              className="p-1.5 rounded-full border border-border text-secondary hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
               aria-label="Go back to home"
               title="Return to Home"
             >
@@ -285,14 +289,14 @@ export default function PrivateChatsClient({ initialRoomId = null }: PrivateChat
             </button>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-sm font-semibold text-white tracking-tight">
+                <h1 className="text-sm font-semibold text-foreground tracking-tight">
                   Private Messages
                 </h1>
-                <span className="border border-white/10 text-neutral-400 bg-transparent text-[10px] font-medium tracking-wider uppercase px-2 py-0.5 rounded-full">
+                <span className="border border-border text-muted bg-surface/50 text-[10px] font-medium tracking-wider uppercase px-2 py-0.5 rounded-full">
                   Active Session
                 </span>
               </div>
-              <p className="text-[10px] text-neutral-500 font-normal leading-tight">
+              <p className="text-[10px] text-muted font-normal leading-tight">
                 End-to-end anonymous 1-on-1 private messaging
               </p>
             </div>
@@ -301,44 +305,45 @@ export default function PrivateChatsClient({ initialRoomId = null }: PrivateChat
           <div className="flex items-center gap-2">
             <Link
               href="/community"
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full border border-white/10 text-neutral-300 hover:text-white hover:bg-white/5 transition-colors"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full border border-border text-secondary hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
             >
-              <MessageSquare className="w-3.5 h-3.5 text-neutral-400" />
-              <span>Community Chat</span>
+              <MessageSquare className="w-3.5 h-3.5 text-muted" />
+              <span>Community Feed</span>
             </Link>
+            <ThemeToggle />
           </div>
         </div>
       </header>
 
       {/* Main Workspace Layout */}
-      <div className="flex flex-1 overflow-hidden bg-black">
+      <div className="flex flex-1 overflow-hidden bg-background">
         {/* Left Column: Conversation List Sidebar */}
         <div
           className={`${
             selectedRoomId ? "hidden md:flex" : "flex"
-          } flex-col w-full md:w-80 lg:w-96 md:border-r border-white/5 overflow-hidden bg-black flex-shrink-0`}
+          } flex-col w-full md:w-80 lg:w-96 md:border-r border-border overflow-hidden bg-surface flex-shrink-0`}
         >
           {/* Educational notice banner */}
           {showNotice && (
-            <div className="m-3 p-3.5 rounded-2xl border border-white/10 bg-white/5 text-xs space-y-2 animate-in fade-in duration-200">
+            <div className="m-3 p-3.5 rounded-2xl border border-border bg-neutral-50 dark:bg-neutral-900 text-xs space-y-2.5 animate-in fade-in duration-200 shadow-xs">
               <div className="flex items-start gap-2.5">
-                <div className="w-6 h-6 rounded-lg bg-white/10 text-white flex items-center justify-center shrink-0 mt-0.5">
-                  <Sparkles className="w-3.5 h-3.5" />
+                <div className="w-7 h-7 rounded-full bg-neutral-100 dark:bg-neutral-800 border border-border text-secondary flex items-center justify-center shrink-0 mt-0.5">
+                  <Sparkles className="w-3.5 h-3.5 text-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-white leading-tight text-xs">
+                  <h3 className="font-semibold text-foreground leading-tight text-xs">
                     Anonymous Private Messaging
                   </h3>
-                  <p className="text-neutral-500 font-normal text-[11px] leading-relaxed mt-0.5">
+                  <p className="text-muted font-normal text-[11px] leading-relaxed mt-0.5">
                     Your session is tied to this browser. You can message anyone privately or contact the developer.
                   </p>
                 </div>
               </div>
-              <div className="flex justify-end pt-1">
+              <div className="flex justify-end pt-0.5">
                 <button
                   type="button"
                   onClick={handleDismissNotice}
-                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white text-black hover:bg-neutral-200 text-[11px] font-medium transition-colors"
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-foreground text-background hover:opacity-90 text-[11px] font-semibold transition-opacity focus-visible:outline-none"
                 >
                   <span>Got it</span>
                   <ArrowRight className="w-3 h-3" />
@@ -359,7 +364,7 @@ export default function PrivateChatsClient({ initialRoomId = null }: PrivateChat
         <div
           className={`${
             selectedRoomId ? "flex" : "hidden md:flex"
-          } flex-1 flex-col overflow-hidden bg-black min-w-0`}
+          } flex-1 flex-col overflow-hidden bg-background min-w-0`}
         >
           {selectedRoomId === "broadcast" ? (
             <BroadcastConversationView onBack={handleBackFromConversation} />
@@ -382,4 +387,3 @@ export default function PrivateChatsClient({ initialRoomId = null }: PrivateChat
     </div>
   );
 }
-

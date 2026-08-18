@@ -33,15 +33,15 @@ function formatRelativeTime(dateString?: string): string {
 
 function RoomSkeleton(): JSX.Element {
   return (
-    <div className="divide-y divide-white/5">
+    <div className="divide-y divide-border">
       {[1, 2, 3, 4, 5].map((i) => (
         <div key={i} className="flex items-center gap-3 p-4 animate-pulse">
-          <div className="w-8 h-8 rounded-full bg-white/5 shrink-0" />
+          <div className="w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-800 shrink-0" />
           <div className="flex-1 min-w-0 space-y-2">
-            <div className="h-3.5 bg-white/5 rounded w-28" />
-            <div className="h-3 bg-white/[0.03] rounded w-44" />
+            <div className="h-3.5 bg-neutral-200 dark:bg-neutral-800 rounded w-28" />
+            <div className="h-3 bg-neutral-100 dark:bg-neutral-800 rounded w-44" />
           </div>
-          <div className="h-3 bg-white/[0.02] rounded w-8 shrink-0" />
+          <div className="h-3 bg-neutral-100 dark:bg-neutral-800 rounded w-8 shrink-0" />
         </div>
       ))}
     </div>
@@ -81,30 +81,36 @@ const ConversationItem = React.memo(
       <button
         type="button"
         onClick={handleClick}
-        className={`w-full text-left p-4 transition-colors relative block focus-visible:outline-none ${
+        className={`w-full text-left p-4 transition-colors relative block group focus-visible:outline-none ${
           isSelected
-            ? "bg-white/5"
-            : "hover:bg-white/[0.02]"
+            ? "bg-neutral-100 dark:bg-neutral-800 text-foreground border-l-2 border-l-foreground"
+            : "hover:bg-neutral-100/70 dark:hover:bg-neutral-800/60 text-foreground"
         }`}
         aria-label={`Open conversation with ${displayName}${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
         aria-current={isSelected ? "page" : undefined}
       >
         <div className="flex items-center justify-between gap-2 mb-1">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-medium shrink-0 bg-white/5 border border-white/10 text-neutral-400">
+            <div
+              className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-medium shrink-0 border transition-colors ${
+                isSelected
+                  ? "bg-neutral-200 dark:bg-neutral-700 border-foreground/20 text-foreground"
+                  : "bg-neutral-100 dark:bg-neutral-800 border-border text-secondary group-hover:text-foreground group-hover:border-foreground/20"
+              }`}
+            >
               {isDeveloper ? <Wrench className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
             </div>
 
             <div className="min-w-0 flex-1 flex items-center gap-1.5">
               <span
-                className={`text-xs truncate leading-tight ${
-                  isSelected ? "font-medium text-white" : "font-normal text-neutral-200"
+                className={`text-xs truncate leading-tight text-foreground transition-colors ${
+                  isSelected ? "font-bold" : "font-semibold group-hover:text-foreground"
                 }`}
               >
                 {displayName}
               </span>
               {isDeveloper && (
-                <span className="border border-white/10 text-neutral-400 bg-transparent text-[10px] font-medium tracking-wider uppercase px-2 py-0.5 rounded-full shrink-0">
+                <span className="border border-border text-muted bg-surface/50 text-[10px] font-medium tracking-wider uppercase px-2 py-0.5 rounded-full shrink-0">
                   Developer
                 </span>
               )}
@@ -112,26 +118,26 @@ const ConversationItem = React.memo(
           </div>
 
           {timeString && (
-            <span className="text-[10px] text-neutral-500 font-normal shrink-0 tabular-nums">
+            <span className="text-[10px] text-muted group-hover:text-secondary font-normal shrink-0 tabular-nums transition-colors">
               {formatRelativeTime(timeString)}
             </span>
           )}
         </div>
 
         <div className="flex items-center justify-between gap-2 pl-9.5">
-          <p className="text-xs text-neutral-500 font-normal truncate leading-relaxed">
+          <p className="text-xs text-muted group-hover:text-secondary font-normal truncate leading-relaxed transition-colors">
             {room.lastMessage?.content ? (
               <>
-                {isMine && <span className="font-normal text-neutral-400">You: </span>}
+                {isMine && <span className="font-normal text-secondary group-hover:text-foreground">You: </span>}
                 {room.lastMessage.content}
               </>
             ) : (
-              <span className="italic text-neutral-600 text-[11px]">No messages yet</span>
+              <span className="italic text-muted/70 text-[11px]">No messages yet</span>
             )}
           </p>
 
           {unreadCount > 0 && (
-            <span className="flex-shrink-0 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-white px-1 text-[9px] font-bold text-black">
+            <span className="flex-shrink-0 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-foreground px-1 text-[9px] font-bold text-background">
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
@@ -202,27 +208,28 @@ export default function ConversationList({
     setError("");
 
     try {
-      const [roomsData, contactsData, broadcastsData] = await Promise.all([
-        getMyRooms(50),
-        getMyContacts(50).catch(() => [] as ContactIdentityResponse[]),
-        getUserBroadcasts(1).catch(() => [] as IPublicBroadcast[]),
+      const [roomsData, contactsData, broadcastData] = await Promise.all([
+        getMyRooms(),
+        getMyContacts(),
+        getUserBroadcasts(1).catch(() => []),
       ]);
 
-      setRooms(roomsData);
+      // Cache the fetched rooms
       privateChatCache.setRoomsList(roomsData);
+      setRooms(roomsData);
 
-      if (broadcastsData.length > 0) {
-        setLatestBroadcast(broadcastsData[0]);
-      }
-
-      const map: Record<string, ContactIdentityResponse> = {};
+      const contactMap: Record<string, ContactIdentityResponse> = {};
       for (const c of contactsData) {
-        map[c.contactId] = c;
+        contactMap[c.contactId] = c;
       }
-      setInternalContacts(map);
-    } catch (err) {
+      setInternalContacts(contactMap);
+
+      if (broadcastData && broadcastData.length > 0) {
+        setLatestBroadcast(broadcastData[0]);
+      }
+    } catch (err: unknown) {
       if (!privateChatCache.getRoomsList()) {
-        setError(err instanceof Error ? err.message : "Could not load conversations.");
+        setError(err instanceof Error ? err.message : "Failed to load conversations.");
       }
     } finally {
       setLoading(false);
@@ -233,77 +240,99 @@ export default function ConversationList({
     fetchRoomsAndContacts();
   }, [fetchRoomsAndContacts]);
 
-  // Real-time socket listeners for live updates
+  // Real-time listener for new broadcast announcements
   useEffect(() => {
     const socket = getSocket();
-    const handleNewBroadcast = (broadcast: IPublicBroadcast) => {
-      setLatestBroadcast(broadcast);
-    };
 
-    const handleNewPrivateMessage = (message: any) => {
-      if (!message || !message.roomId) return;
-      privateChatCache.handleIncomingSocketMessage(message.roomId, message);
+    const handleNewBroadcast = (newBroadcast: IPublicBroadcast) => {
+      setLatestBroadcast(newBroadcast);
     };
 
     socket.on("broadcast:new", handleNewBroadcast);
-    socket.on("private:message:new", handleNewPrivateMessage);
 
     return () => {
       socket.off("broadcast:new", handleNewBroadcast);
-      socket.off("private:message:new", handleNewPrivateMessage);
     };
   }, []);
 
-  // Merged contacts (parent contacts override internal contacts)
-  const effectiveContacts = useMemo(
-    () => ({ ...internalContacts, ...contactsMap }),
-    [internalContacts, contactsMap]
-  );
+  const effectiveContacts = useMemo(() => {
+    return { ...internalContacts, ...contactsMap };
+  }, [internalContacts, contactsMap]);
 
-  // Memoized filtered and sorted rooms
+  // Helper to extract timestamp numeric value for sorting
+  const getRoomTimestamp = (room: IPrivateRoom): number => {
+    if (room.lastMessage?.createdAt) {
+      const t = new Date(room.lastMessage.createdAt).getTime();
+      if (!isNaN(t)) return t;
+    }
+    if (room.updatedAt) {
+      const t = new Date(room.updatedAt).getTime();
+      if (!isNaN(t)) return t;
+    }
+    if (room.createdAt) {
+      const t = new Date(room.createdAt).getTime();
+      if (!isNaN(t)) return t;
+    }
+    return 0;
+  };
+
+  // WhatsApp-style: sort non-broadcast rooms by latest message timestamp descending
+  const sortedRooms = useMemo(() => {
+    return [...rooms].sort((a, b) => getRoomTimestamp(b) - getRoomTimestamp(a));
+  }, [rooms]);
+
   const filteredRooms = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return rooms;
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return sortedRooms;
 
-    return rooms.filter((room) => {
+    return sortedRooms.filter((room) => {
       const otherId = room.participants.find((p) => p !== clientId) || room.participants[0];
       const isDeveloper = otherId === "admin";
       const displayName = isDeveloper
         ? "Reviewer Bucket Developer"
         : effectiveContacts[otherId]?.displayName || "Anonymous User";
-      const lastContent = room.lastMessage?.content || "";
-      return (
-        displayName.toLowerCase().includes(q) ||
-        otherId.toLowerCase().includes(q) ||
-        lastContent.toLowerCase().includes(q)
-      );
+
+      const nameMatch = displayName.toLowerCase().includes(query);
+      const lastMsgMatch = room.lastMessage?.content?.toLowerCase().includes(query) ?? false;
+      return nameMatch || lastMsgMatch;
     });
-  }, [rooms, searchQuery, effectiveContacts, clientId]);
+  }, [sortedRooms, searchQuery, clientId, effectiveContacts]);
+
+  const shouldShowBroadcast = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return true;
+    return (
+      "reviewer bucket".includes(query) ||
+      "official".includes(query) ||
+      "announcement".includes(query) ||
+      (latestBroadcast?.content?.toLowerCase().includes(query) ?? false)
+    );
+  }, [searchQuery, latestBroadcast]);
 
   return (
-    <div className="flex flex-col h-full bg-black">
-      {/* Search Bar */}
-      <div className="p-3.5 border-b border-white/5 space-y-2">
+    <div className="flex flex-col h-full overflow-hidden bg-surface text-foreground" role="region" aria-label="Conversations Sidebar">
+      {/* Search Bar Header */}
+      <div className="p-3.5 border-b border-border space-y-2">
         <div className="relative">
-          <Search className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500" />
+          <Search className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
           <input
             type="text"
             placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs bg-white/5 border border-white/10 rounded-full text-white placeholder-neutral-500 focus:outline-none focus:border-white/20 transition-colors"
+            className="w-full pl-9 pr-3 py-2 text-xs bg-background border border-border rounded-full text-foreground placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-foreground/20 transition-colors"
           />
         </div>
       </div>
 
       {/* Quick Navigation Header */}
-      <div className="px-4 py-2.5 border-b border-white/5 bg-black flex items-center justify-between">
-        <span className="text-[10px] font-medium text-neutral-500 uppercase tracking-wider">
+      <div className="px-4 py-2.5 border-b border-border bg-surface flex items-center justify-between">
+        <span className="text-[10px] font-medium text-muted uppercase tracking-wider">
           Conversations ({rooms.length})
         </span>
         <Link
           href="/community"
-          className="text-[11px] font-normal text-neutral-400 hover:text-white flex items-center gap-1 transition-colors"
+          className="text-[11px] font-normal text-muted hover:text-foreground flex items-center gap-1 transition-colors"
         >
           <MessageSquare className="w-3 h-3" />
           <span>Community</span>
@@ -311,16 +340,17 @@ export default function ConversationList({
       </div>
 
       {/* Scrollable Conversation List */}
-      <ScrollArea className="flex-1 divide-y divide-white/5" role="list">
+      <ScrollArea className="flex-1 divide-y divide-border" role="list">
         {/* Pinned Official Reviewer Bucket Broadcast Channel */}
-        <div role="listitem">
+        {shouldShowBroadcast && (
+          <div role="listitem">
           <button
             type="button"
             onClick={onSelectBroadcast || (() => {})}
-            className={`w-full text-left p-4 transition-colors relative block focus-visible:outline-none ${
+            className={`w-full text-left p-4 transition-colors relative block group focus-visible:outline-none ${
               selectedRoomId === "broadcast"
-                ? "bg-white/5"
-                : "hover:bg-white/[0.02]"
+                ? "bg-amber-500/[0.08] border-l-2 border-l-amber-500 text-foreground"
+                : "hover:bg-neutral-100/70 dark:hover:bg-neutral-800/60 text-foreground"
             }`}
             aria-label={`Open Reviewer Bucket Official announcements${
               broadcastUnread > 0 ? ` (${broadcastUnread} unread)` : ""
@@ -329,65 +359,66 @@ export default function ConversationList({
           >
             <div className="flex items-center justify-between gap-2 mb-1">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 text-neutral-400 flex items-center justify-center text-[10px] font-medium shrink-0">
+                <div className="w-7 h-7 rounded-full bg-amber-500/15 dark:bg-amber-400/15 border border-amber-500/30 dark:border-amber-400/30 text-amber-600 dark:text-amber-400 flex items-center justify-center text-[10px] font-medium shrink-0">
                   <Megaphone className="w-3.5 h-3.5" />
                 </div>
                 <div className="min-w-0 flex-1 flex items-center gap-1.5">
                   <span
                     className={`text-xs truncate leading-tight ${
                       selectedRoomId === "broadcast"
-                        ? "font-medium text-white"
-                        : "font-normal text-neutral-200"
+                        ? "font-bold text-foreground"
+                        : "font-semibold text-foreground/90"
                     }`}
                   >
                     Reviewer Bucket
                   </span>
-                  <span className="border border-white/10 text-neutral-400 bg-transparent text-[10px] font-medium tracking-wider uppercase px-2 py-0.5 rounded-full shrink-0">
+                  <span className="bg-amber-500/15 dark:bg-amber-400/15 border border-amber-500/30 dark:border-amber-400/30 text-amber-700 dark:text-amber-300 text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full shrink-0">
                     Official
                   </span>
                 </div>
               </div>
 
               {latestBroadcast?.createdAt && (
-                <span className="text-[10px] text-neutral-500 font-normal shrink-0 tabular-nums">
+                <span className="text-[10px] text-muted font-normal shrink-0 tabular-nums">
                   {formatRelativeTime(latestBroadcast.createdAt)}
                 </span>
               )}
             </div>
 
             <div className="flex items-center justify-between gap-2 pl-9.5">
-              <p className="text-xs text-neutral-500 font-normal truncate leading-relaxed">
+              <p className="text-xs text-muted font-normal truncate leading-relaxed">
                 {latestBroadcast?.content || "Official announcement channel"}
               </p>
               {broadcastUnread > 0 && (
-                <span className="flex-shrink-0 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-white px-1 text-[9px] font-bold text-black">
+                <span className="flex-shrink-0 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-white shadow-2xs">
                   {broadcastUnread > 9 ? "9+" : broadcastUnread}
                 </span>
               )}
             </div>
           </button>
         </div>
+        )}
 
         {/* Loading State */}
         {loading && rooms.length === 0 ? (
           <RoomSkeleton />
         ) : error && rooms.length === 0 ? (
           <div className="p-6 text-center space-y-3">
-            <AlertCircle className="w-6 h-6 text-neutral-500 mx-auto" />
-            <p className="text-xs text-neutral-400 font-normal">{error}</p>
+            <AlertCircle className="w-6 h-6 text-muted mx-auto" />
+            <p className="text-xs text-muted font-normal">{error}</p>
             <button
               type="button"
               onClick={fetchRoomsAndContacts}
-              className="px-3.5 py-1.5 bg-white text-black hover:bg-neutral-200 text-xs font-semibold rounded-full transition-colors"
+              className="px-3.5 py-1.5 bg-foreground text-background hover:opacity-90 text-xs font-semibold rounded-full transition-opacity"
             >
               Retry
             </button>
           </div>
         ) : filteredRooms.length === 0 ? (
-          <div className="p-8 text-center text-neutral-500 space-y-2">
-            <MessageSquare className="w-7 h-7 text-neutral-600 mx-auto" />
-            <p className="text-xs font-normal text-neutral-400">No conversations found.</p>
-            <p className="text-[11px] text-neutral-500 font-normal">
+          <div className="p-8 text-center text-muted space-y-2">
+            <MessageSquare className="w-7 h-7 text-muted/60 mx-auto" />
+            <p className="text-xs font-normal text-foreground">No conversations found.</p>
+            <p className="text-[11px] text-muted font-normal">
               Start chatting with community members or message the developer.
             </p>
           </div>
