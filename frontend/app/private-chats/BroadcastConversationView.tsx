@@ -7,6 +7,7 @@ import { IPublicBroadcast, getUserBroadcasts } from "@/app/services/broadcasts";
 import { createOrGetDeveloperRoom } from "@/app/services/private-rooms";
 import { getSocket } from "@/app/utils/socket";
 import { useBroadcastUnread } from "../hooks/useBroadcastUnread";
+import ScrollArea from "@/app/components/ScrollArea";
 import AnonymousInfoModal from "./AnonymousInfoModal";
 
 export interface BroadcastConversationViewProps {
@@ -240,7 +241,7 @@ export default function BroadcastConversationView({
       </header>
 
       {/* Announcements Stream */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+      <ScrollArea ref={scrollRef} className="flex-1 p-4 sm:p-6 space-y-4">
         {loading ? (
           <AnnouncementSkeleton />
         ) : error ? (
@@ -278,7 +279,7 @@ export default function BroadcastConversationView({
                   <div className="flex items-center justify-between border-b border-border/50 pb-2">
                     <div className="flex items-center gap-2">
                       <div className="w-5 h-5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                        <Megaphone className="w-3 h-3" />
+                        <Megaphone className="w-3.5 h-3.5" />
                       </div>
                       <div>
                         <span className="text-xs font-bold text-foreground block leading-tight">
@@ -307,7 +308,7 @@ export default function BroadcastConversationView({
             );
           })
         )}
-      </div>
+      </ScrollArea>
 
       {/* Read-Only Footer Banner */}
       <footer className="flex-shrink-0 border-t border-border bg-surface/90 backdrop-blur-xs p-3 sm:p-4">

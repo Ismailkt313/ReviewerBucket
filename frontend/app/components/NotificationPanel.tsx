@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Bell, MessageSquare, MessageCircleMore, UserCheck, RefreshCw, Loader2 } from "lucide-react";
 import { useNotifications, getRelativeTime, NotificationItem } from "../hooks/useNotifications";
 import { getApiUrl } from "../utils/api";
+import ScrollArea from "./ScrollArea";
 
 export default function NotificationPanel() {
   const [isOpen, setIsOpen] = useState(false);
@@ -172,7 +173,7 @@ export default function NotificationPanel() {
           )}
 
           {/* List Area */}
-          <div className="flex-1 overflow-y-auto scroll-smooth py-1 divide-y divide-border/40 max-h-[380px]">
+          <ScrollArea className="flex-1 scroll-smooth py-1 divide-y divide-border/40 max-h-[380px]">
             {notifications.length > 0 ? (
               notifications.map((n) => (
                 <div
@@ -217,7 +218,7 @@ export default function NotificationPanel() {
                 </p>
               </div>
             )}
-          </div>
+          </ScrollArea>
         </div>
       )}
     </div>

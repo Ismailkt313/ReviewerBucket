@@ -16,6 +16,8 @@ export interface IPrivateMessage {
   } | null;
   createdAt: string;
   updatedAt: string;
+  status?: "sending" | "sent" | "failed";
+  tempId?: string;
 }
 
 export interface GetMessagesResult {

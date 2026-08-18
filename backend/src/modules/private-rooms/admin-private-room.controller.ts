@@ -25,6 +25,23 @@ export const getAdminPrivateRooms = async (
   }
 };
 
+export const getAdminPrivateUnread = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const unreadData = await privateRoomService.getAdminUnreadCounts();
+
+    res.status(200).json({
+      success: true,
+      data: unreadData
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getAdminPrivateRoomById = async (
   req: Request,
   res: Response,

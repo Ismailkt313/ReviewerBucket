@@ -37,17 +37,17 @@ function SelectConversationPrompt({
   isOpeningDev,
 }: SelectConversationPromptProps) {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center text-center select-none px-8 py-12 bg-background/50">
+    <div className="flex flex-col flex-1 items-center justify-center text-center select-none px-8 py-12 bg-black">
       <div className="max-w-md w-full space-y-6">
-        <div className="mx-auto w-14 h-14 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-xs">
-          <MessageSquare className="w-7 h-7" />
+        <div className="mx-auto w-12 h-12 rounded-2xl bg-white/5 border border-white/10 text-neutral-300 flex items-center justify-center">
+          <MessageSquare className="w-5 h-5" />
         </div>
 
         <div className="space-y-1.5">
-          <h2 className="text-base font-bold text-foreground tracking-tight">
+          <h2 className="text-sm font-semibold text-white tracking-tight">
             Select a Conversation
           </h2>
-          <p className="text-xs text-muted leading-relaxed max-w-sm mx-auto">
+          <p className="text-xs text-neutral-500 font-normal leading-relaxed max-w-sm mx-auto">
             Choose a private 1-on-1 chat or review official announcements from the sidebar.
           </p>
         </div>
@@ -58,17 +58,17 @@ function SelectConversationPrompt({
             type="button"
             onClick={onOpenDeveloperChat}
             disabled={isOpeningDev}
-            className="p-3.5 rounded-xl border border-border bg-surface hover:bg-elevated transition-colors text-left group focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
+            className="p-3.5 rounded-2xl border border-white/5 bg-white/[0.02] hover:bg-white/5 hover:border-white/10 transition-colors text-left group focus:outline-none disabled:opacity-50"
           >
             <div className="flex items-center gap-2 mb-1.5">
-              <div className="w-6 h-6 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+              <div className="w-6 h-6 rounded-lg bg-white/5 border border-white/10 text-neutral-300 flex items-center justify-center">
                 <Wrench className="w-3.5 h-3.5" />
               </div>
-              <span className="text-xs font-bold text-foreground group-hover:text-blue-500 transition-colors">
+              <span className="text-xs font-medium text-white group-hover:text-white transition-colors">
                 Message Developer
               </span>
             </div>
-            <p className="text-[11px] text-muted leading-snug">
+            <p className="text-[11px] text-neutral-500 font-normal leading-snug">
               Get direct developer support or report an issue anonymously.
             </p>
           </button>
@@ -76,24 +76,24 @@ function SelectConversationPrompt({
           <button
             type="button"
             onClick={onSelectBroadcast}
-            className="p-3.5 rounded-xl border border-border bg-surface hover:bg-elevated transition-colors text-left group focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="p-3.5 rounded-2xl border border-white/5 bg-white/[0.02] hover:bg-white/5 hover:border-white/10 transition-colors text-left group focus:outline-none"
           >
             <div className="flex items-center gap-2 mb-1.5">
-              <div className="w-6 h-6 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+              <div className="w-6 h-6 rounded-lg bg-white/5 border border-white/10 text-neutral-300 flex items-center justify-center">
                 <Megaphone className="w-3.5 h-3.5" />
               </div>
-              <span className="text-xs font-bold text-foreground group-hover:text-blue-500 transition-colors">
+              <span className="text-xs font-medium text-white group-hover:text-white transition-colors">
                 Announcements
               </span>
             </div>
-            <p className="text-[11px] text-muted leading-snug">
+            <p className="text-[11px] text-neutral-500 font-normal leading-snug">
               View official updates, feature releases, and system alerts.
             </p>
           </button>
         </div>
 
-        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface border border-border text-[11px] text-muted">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-transparent border border-white/10 text-[11px] text-neutral-500 font-normal">
+          <ShieldCheck className="w-3.5 h-3.5 text-neutral-400" />
           <span>All chats are end-to-end anonymous and private.</span>
         </div>
       </div>
@@ -141,6 +141,24 @@ export default function PrivateChatsClient({ initialRoomId = null }: PrivateChat
     return () => clearTimeout(timer);
   }, []);
 
+  // Popstate listener for seamless browser/hardware back button handling
+  useEffect(() => {
+    const handlePopState = () => {
+      if (typeof window !== "undefined") {
+        const path = window.location.pathname;
+        const match = path.match(/\/private-chats\/(.+)/);
+        if (match && match[1]) {
+          setSelectedRoomId(match[1]);
+        } else {
+          setSelectedRoomId(null);
+        }
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
   const handleDismissNotice = useCallback(() => {
     localStorage.setItem(NOTICE_STORAGE_KEY, "true");
     setShowNotice(false);
@@ -154,26 +172,18 @@ export default function PrivateChatsClient({ initialRoomId = null }: PrivateChat
     (room: IPrivateRoom) => {
       setSelectedRoomId(room.id);
       if (typeof window !== "undefined") {
-        if (window.innerWidth >= 768) {
-          window.history.pushState(null, "", `/private-chats/${room.id}`);
-        } else {
-          router.push(`/private-chats/${room.id}`);
-        }
+        window.history.pushState({ roomId: room.id }, "", `/private-chats/${room.id}`);
       }
     },
-    [router]
+    []
   );
 
   const handleSelectBroadcast = useCallback(() => {
     setSelectedRoomId("broadcast");
     if (typeof window !== "undefined") {
-      if (window.innerWidth >= 768) {
-        window.history.pushState(null, "", "/private-chats/broadcast");
-      } else {
-        router.push("/private-chats/broadcast");
-      }
+      window.history.pushState({ roomId: "broadcast" }, "", "/private-chats/broadcast");
     }
-  }, [router]);
+  }, []);
 
   const handleOpenDeveloperChat = useCallback(async () => {
     setIsOpeningDev(true);
@@ -181,29 +191,21 @@ export default function PrivateChatsClient({ initialRoomId = null }: PrivateChat
       const room = await createOrGetDeveloperRoom();
       setSelectedRoomId(room.id);
       if (typeof window !== "undefined") {
-        if (window.innerWidth >= 768) {
-          window.history.pushState(null, "", `/private-chats/${room.id}`);
-        } else {
-          router.push(`/private-chats/${room.id}`);
-        }
+        window.history.pushState({ roomId: room.id }, "", `/private-chats/${room.id}`);
       }
     } catch {
       // ignore
     } finally {
       setIsOpeningDev(false);
     }
-  }, [router]);
+  }, []);
 
   const handleBackFromConversation = useCallback(() => {
     setSelectedRoomId(null);
     if (typeof window !== "undefined") {
-      if (window.innerWidth >= 768) {
-        window.history.pushState(null, "", "/private-chats");
-      } else {
-        router.push("/private-chats");
-      }
+      window.history.pushState(null, "", "/private-chats");
     }
-  }, [router]);
+  }, []);
 
   const handleContactUpdate = useCallback((updated: ContactIdentityResponse) => {
     setContactsMap((prev) => ({
@@ -216,42 +218,42 @@ export default function PrivateChatsClient({ initialRoomId = null }: PrivateChat
   if (hasCheckedSession && !clientId) {
     return (
       <div
-        className="fixed top-0 left-0 w-full flex flex-col overflow-hidden bg-background text-foreground"
+        className="fixed top-0 left-0 w-full flex flex-col overflow-hidden bg-black text-white"
         style={{
           height: "var(--visual-viewport-height, 100dvh)",
           transform: "translateY(var(--visual-viewport-offset-top, 0px))",
         }}
       >
-        <header className="relative z-50 flex-shrink-0 border-b border-border bg-surface/95 backdrop-blur-xs">
+        <header className="relative z-50 flex-shrink-0 border-b border-white/5 bg-black/90 backdrop-blur-md">
           <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
             <button
               type="button"
               onClick={handleBack}
-              className="p-1.5 rounded-lg border border-border text-muted hover:text-foreground hover:bg-elevated transition-colors"
+              className="p-1.5 rounded-full border border-white/10 text-neutral-400 hover:text-white hover:bg-white/5 transition-colors"
               aria-label="Go back"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
-            <h1 className="text-sm font-semibold text-foreground tracking-tight">
+            <h1 className="text-sm font-semibold text-white tracking-tight">
               Private Chats
             </h1>
           </div>
         </header>
 
-        <div className="flex flex-col flex-1 items-center justify-center text-center select-none px-6 py-12">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-neutral-100 dark:bg-neutral-800 text-muted mb-4">
+        <div className="flex flex-col flex-1 items-center justify-center text-center select-none px-6 py-12 bg-black">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-neutral-400 mb-4">
             <ShieldAlert className="w-6 h-6" />
           </div>
-          <h2 className="text-sm font-semibold text-foreground mb-1">
+          <h2 className="text-sm font-semibold text-white mb-1">
             Anonymous session unavailable
           </h2>
-          <p className="text-xs text-muted max-w-[280px] mb-5 leading-relaxed">
+          <p className="text-xs text-neutral-500 font-normal max-w-[280px] mb-5 leading-relaxed">
             This browser no longer has access to the anonymous identity used for these private chats.
           </p>
           <button
             type="button"
             onClick={() => router.push("/")}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            className="inline-flex items-center gap-1.5 rounded-full bg-white text-black hover:bg-neutral-200 text-xs font-semibold px-4 py-2 transition-colors focus-visible:outline-none"
           >
             Return to Home
           </button>
@@ -262,20 +264,20 @@ export default function PrivateChatsClient({ initialRoomId = null }: PrivateChat
 
   return (
     <div
-      className="fixed top-0 left-0 w-full flex flex-col overflow-hidden bg-background text-foreground"
+      className="fixed top-0 left-0 w-full flex flex-col overflow-hidden bg-black text-white"
       style={{
         height: "var(--visual-viewport-height, 100dvh)",
         transform: "translateY(var(--visual-viewport-offset-top, 0px))",
       }}
     >
       {/* Top Navbar Header */}
-      <header className="relative z-50 flex-shrink-0 border-b border-border bg-surface/95 backdrop-blur-xs">
+      <header className="relative z-50 flex-shrink-0 border-b border-white/5 bg-black/90 backdrop-blur-md">
         <div className="flex h-14 items-center justify-between gap-3 px-4 sm:px-6">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={handleBack}
-              className="p-1.5 rounded-lg border border-border text-muted hover:text-foreground hover:bg-elevated transition-colors"
+              className="p-1.5 rounded-full border border-white/10 text-neutral-400 hover:text-white hover:bg-white/5 transition-colors"
               aria-label="Go back to home"
               title="Return to Home"
             >
@@ -283,14 +285,14 @@ export default function PrivateChatsClient({ initialRoomId = null }: PrivateChat
             </button>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-sm font-bold text-foreground tracking-tight">
+                <h1 className="text-sm font-semibold text-white tracking-tight">
                   Private Messages
                 </h1>
-                <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <span className="border border-white/10 text-neutral-400 bg-transparent text-[10px] font-medium tracking-wider uppercase px-2 py-0.5 rounded-full">
                   Active Session
                 </span>
               </div>
-              <p className="text-[10px] text-muted leading-tight">
+              <p className="text-[10px] text-neutral-500 font-normal leading-tight">
                 End-to-end anonymous 1-on-1 private messaging
               </p>
             </div>
@@ -299,9 +301,9 @@ export default function PrivateChatsClient({ initialRoomId = null }: PrivateChat
           <div className="flex items-center gap-2">
             <Link
               href="/community"
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-border text-secondary hover:text-foreground hover:bg-elevated transition-colors"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full border border-white/10 text-neutral-300 hover:text-white hover:bg-white/5 transition-colors"
             >
-              <MessageSquare className="w-3.5 h-3.5 text-blue-500" />
+              <MessageSquare className="w-3.5 h-3.5 text-neutral-400" />
               <span>Community Chat</span>
             </Link>
           </div>
@@ -309,26 +311,25 @@ export default function PrivateChatsClient({ initialRoomId = null }: PrivateChat
       </header>
 
       {/* Main Workspace Layout */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden bg-black">
         {/* Left Column: Conversation List Sidebar */}
-        {/* On desktop: ALWAYS visible (md:flex md:w-80 lg:w-96). On mobile: visible when no room selected */}
         <div
           className={`${
             selectedRoomId ? "hidden md:flex" : "flex"
-          } flex-col w-full md:w-80 lg:w-96 md:border-r border-border overflow-hidden bg-surface flex-shrink-0`}
+          } flex-col w-full md:w-80 lg:w-96 md:border-r border-white/5 overflow-hidden bg-black flex-shrink-0`}
         >
           {/* Educational notice banner */}
           {showNotice && (
-            <div className="m-3 p-3 rounded-xl border border-border/80 bg-surface/90 backdrop-blur-xs text-xs space-y-2 animate-in fade-in duration-200">
+            <div className="m-3 p-3.5 rounded-2xl border border-white/10 bg-white/5 text-xs space-y-2 animate-in fade-in duration-200">
               <div className="flex items-start gap-2.5">
-                <div className="w-6 h-6 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-6 h-6 rounded-lg bg-white/10 text-white flex items-center justify-center shrink-0 mt-0.5">
                   <Sparkles className="w-3.5 h-3.5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-foreground leading-tight text-xs">
+                  <h3 className="font-semibold text-white leading-tight text-xs">
                     Anonymous Private Messaging
                   </h3>
-                  <p className="text-muted text-[11px] leading-relaxed mt-0.5">
+                  <p className="text-neutral-500 font-normal text-[11px] leading-relaxed mt-0.5">
                     Your session is tied to this browser. You can message anyone privately or contact the developer.
                   </p>
                 </div>
@@ -337,7 +338,7 @@ export default function PrivateChatsClient({ initialRoomId = null }: PrivateChat
                 <button
                   type="button"
                   onClick={handleDismissNotice}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-semibold transition-colors"
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white text-black hover:bg-neutral-200 text-[11px] font-medium transition-colors"
                 >
                   <span>Got it</span>
                   <ArrowRight className="w-3 h-3" />
@@ -355,17 +356,15 @@ export default function PrivateChatsClient({ initialRoomId = null }: PrivateChat
         </div>
 
         {/* Right Column: Active Conversation Workspace */}
-        {/* On desktop: ALWAYS visible (md:flex flex-1). On mobile: visible when room is selected */}
         <div
           className={`${
             selectedRoomId ? "flex" : "hidden md:flex"
-          } flex-1 flex-col overflow-hidden bg-background min-w-0`}
+          } flex-1 flex-col overflow-hidden bg-black min-w-0`}
         >
           {selectedRoomId === "broadcast" ? (
             <BroadcastConversationView onBack={handleBackFromConversation} />
           ) : selectedRoomId ? (
             <ConversationView
-              key={selectedRoomId}
               roomId={selectedRoomId}
               onBack={handleBackFromConversation}
               onContactUpdate={handleContactUpdate}
@@ -383,3 +382,4 @@ export default function PrivateChatsClient({ initialRoomId = null }: PrivateChat
     </div>
   );
 }
+

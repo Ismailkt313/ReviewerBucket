@@ -1,6 +1,7 @@
 import { Server as SocketIOServer } from "socket.io";
 import { Server as HTTPServer } from "http";
 import { env } from "../config/env.js";
+import { isAllowedOrigin } from "../config/cors.js";
 import { verifyJwt } from "../utils/jwt.js";
 import { AdminJwtPayload } from "../modules/admin-auth/admin-auth.types.js";
 import { registerCommunityHandlers } from "./community.handler.js";
@@ -25,7 +26,7 @@ export interface NotificationClientToServer {
 
 export interface PresenceServerToClient {
   "presence:change": (data: { userId: string; isOnline: boolean }) => void;
-  "private:unread:sync": (data: { roomId?: string; unreadCount?: number; totalUnreadCount?: number }) => void;
+  "private:unread:sync": (data: { roomId?: string; unreadCount?: number; totalUnreadCount?: number; rooms?: Record<string, number> }) => void;
   "private:unread:increment": (data: { roomId: string; messageId?: string }) => void;
   "private:message:new": (message: any) => void;
   "broadcast:new": (broadcast: any) => void;
@@ -52,8 +53,15 @@ let io: RealtimeSocketServer | null = null;
 export function initSocket(httpServer: HTTPServer): RealtimeSocketServer {
   io = new SocketIOServer<CombinedClientToServer, CombinedServerToClient>(httpServer, {
     cors: {
-      origin: env.CLIENT_URL,
-      methods: ["GET", "POST"]
+      origin: (origin, callback) => {
+        if (isAllowedOrigin(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error(`Origin ${origin} not allowed by CORS`));
+        }
+      },
+      methods: ["GET", "POST"],
+      credentials: true
     }
   });
 
@@ -176,19 +184,6 @@ export function initSocket(httpServer: HTTPServer): RealtimeSocketServer {
             const { PrivateRoomService } = await import("../modules/private-rooms/private-room.service.js");
             const service = new PrivateRoomService();
             await service.markRoomAsRead(payload.roomId, userId);
-            if (role === "USER") {
-              const unreadData = await service.getUserUnreadCounts(userId);
-              socket.emit("private:unread:sync", {
-                roomId: payload.roomId,
-                unreadCount: 0,
-                totalUnreadCount: unreadData.totalUnreadCount
-              });
-            } else {
-              socket.emit("private:unread:sync", {
-                roomId: payload.roomId,
-                unreadCount: 0
-              });
-            }
           } catch {
             // ignore
           }

@@ -35,6 +35,9 @@ const privateMessageSchema = new Schema<IPrivateMessageDoc>(
 // Compound index for querying room messages efficiently with cursor-based pagination
 privateMessageSchema.index({ roomId: 1, createdAt: -1, _id: -1 });
 
+// Compound index for fast unread count aggregation across multiple rooms
+privateMessageSchema.index({ roomId: 1, senderId: 1, createdAt: -1 });
+
 export const PrivateMessageModel = model<IPrivateMessageDoc>(
   "PrivateMessage",
   privateMessageSchema

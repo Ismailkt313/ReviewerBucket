@@ -20,7 +20,7 @@ export default function ConversationPageClient({ roomId }: ConversationPageClien
 
   return (
     <div
-      className="fixed top-0 left-0 w-full flex flex-col overflow-hidden bg-background text-foreground"
+      className="fixed top-0 left-0 w-full flex flex-col overflow-hidden bg-black text-white"
       style={{
         height: "var(--visual-viewport-height, 100dvh)",
         transform: "translateY(var(--visual-viewport-offset-top, 0px))"

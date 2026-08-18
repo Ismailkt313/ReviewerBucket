@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback, JSX } from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo, JSX } from "react";
 import {
   MoreVertical,
   Info,
@@ -11,11 +11,15 @@ import {
   RefreshCw,
   User,
   Wrench,
-  ShieldCheck,
   ArrowLeft,
   Send,
   Loader2,
   MessageSquare,
+  Clock,
+  Check,
+  CheckCheck,
+  AlertCircle,
+  RotateCcw,
 } from "lucide-react";
 import { getAnonymousClientId } from "@/app/utils/anonymous-id";
 import { getRoomById } from "@/app/services/private-rooms";
@@ -23,6 +27,8 @@ import { getMessages, sendMessage, IPrivateMessage } from "@/app/services/privat
 import { getContactIdentity, ContactIdentityResponse } from "@/app/services/private-contacts";
 import { getSocket } from "@/app/utils/socket";
 import { usePrivateUnread } from "@/app/hooks/usePrivateUnread";
+import { privateChatCache } from "@/app/utils/private-chat-cache";
+import ScrollArea from "@/app/components/ScrollArea";
 import RenameContactModal from "./RenameContactModal";
 import AnonymousInfoModal from "./AnonymousInfoModal";
 
@@ -55,43 +61,6 @@ function formatMessageTime(dateString: string): string {
   });
 }
 
-// ─── Skeletons ────────────────────────────────────────────────────────────────
-
-function MessageSkeleton(): JSX.Element {
-  return (
-    <div className="flex flex-col gap-4 px-4 py-4" aria-hidden="true">
-      <div className="flex justify-start">
-        <div className="flex flex-col gap-1.5 max-w-[60%]">
-          <div className="h-3 w-16 bg-elevated rounded animate-pulse" />
-          <div className="h-12 w-56 bg-elevated rounded-2xl rounded-tl-xs animate-pulse" />
-        </div>
-      </div>
-      <div className="flex justify-end">
-        <div className="flex flex-col gap-1.5 items-end max-w-[60%]">
-          <div className="h-3 w-8 bg-elevated rounded animate-pulse" />
-          <div className="h-10 w-44 bg-elevated rounded-2xl rounded-tr-xs animate-pulse" />
-        </div>
-      </div>
-      <div className="flex justify-start">
-        <div className="flex flex-col gap-1.5 max-w-[60%]">
-          <div className="h-16 w-64 bg-elevated rounded-2xl rounded-tl-xs animate-pulse" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function HeaderSkeleton(): JSX.Element {
-  return (
-    <div className="flex flex-col gap-1.5" aria-hidden="true">
-      <div className="h-4 w-32 bg-elevated rounded animate-pulse" />
-      <div className="h-3 w-20 bg-elevated/70 rounded animate-pulse" />
-    </div>
-  );
-}
-
-// ─── Date grouping utilities ───────────────────────────────────────────────────
-
 function isSameCalendarDay(a: Date, b: Date): boolean {
   return (
     a.getFullYear() === b.getFullYear() &&
@@ -114,71 +83,222 @@ function getDateLabel(date: Date): string {
   });
 }
 
-type MessageListItem =
-  | { type: "separator"; label: string; key: string }
-  | (IPrivateMessage & {
-      type: "message";
-      isGrouped: boolean;
-      isGroupLast: boolean;
-    });
+// ─── Skeletons ────────────────────────────────────────────────────────────────
 
-function buildMessageList(rawMessages: IPrivateMessage[]): MessageListItem[] {
-  const result: MessageListItem[] = [];
-  let lastDate: Date | null = null;
-
-  for (let i = 0; i < rawMessages.length; i++) {
-    const msg = rawMessages[i];
-    const msgDate = new Date(msg.createdAt);
-
-    if (!lastDate || !isSameCalendarDay(lastDate, msgDate)) {
-      result.push({
-        type: "separator",
-        label: getDateLabel(msgDate),
-        key: `sep-${msgDate.toISOString()}-${i}`,
-      });
-      lastDate = msgDate;
-    }
-
-    const prevMsg = i > 0 ? rawMessages[i - 1] : null;
-    const nextMsg = i < rawMessages.length - 1 ? rawMessages[i + 1] : null;
-
-    const prevDate = prevMsg ? new Date(prevMsg.createdAt) : null;
-    const nextDate = nextMsg ? new Date(nextMsg.createdAt) : null;
-
-    const isGrouped =
-      !!prevMsg &&
-      prevMsg.senderId === msg.senderId &&
-      !!prevDate &&
-      isSameCalendarDay(prevDate, msgDate) &&
-      msgDate.getTime() - prevDate.getTime() < 5 * 60 * 1000;
-
-    const isGroupLast =
-      !nextMsg ||
-      nextMsg.senderId !== msg.senderId ||
-      !nextDate ||
-      !isSameCalendarDay(nextDate, msgDate) ||
-      nextDate.getTime() - msgDate.getTime() >= 5 * 60 * 1000;
-
-    result.push({
-      ...msg,
-      type: "message",
-      isGrouped,
-      isGroupLast,
-    });
-  }
-
-  return result;
+function MessageSkeleton(): JSX.Element {
+  return (
+    <div className="flex flex-col gap-4 px-4 py-4" aria-hidden="true">
+      <div className="flex justify-start">
+        <div className="flex flex-col gap-1.5 max-w-[60%]">
+          <div className="h-3 w-16 bg-white/5 rounded animate-pulse" />
+          <div className="h-12 w-56 bg-neutral-800 rounded-2xl animate-pulse" />
+        </div>
+      </div>
+      <div className="flex justify-end">
+        <div className="flex flex-col gap-1.5 items-end max-w-[60%]">
+          <div className="h-3 w-8 bg-white/5 rounded animate-pulse" />
+          <div className="h-10 w-44 bg-white/20 rounded-2xl animate-pulse" />
+        </div>
+      </div>
+      <div className="flex justify-start">
+        <div className="flex flex-col gap-1.5 max-w-[60%]">
+          <div className="h-16 w-64 bg-neutral-800 rounded-2xl animate-pulse" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function DateSeparator({ label }: { label: string }): JSX.Element {
+function HeaderSkeleton(): JSX.Element {
+  return (
+    <div className="flex flex-col gap-1.5" aria-hidden="true">
+      <div className="h-4 w-32 bg-white/5 rounded animate-pulse" />
+      <div className="h-3 w-20 bg-white/[0.03] rounded animate-pulse" />
+    </div>
+  );
+}
+
+// ─── Date Separator ───────────────────────────────────────────────────────────
+
+const DateSeparator = React.memo(function DateSeparator({ label }: { label: string }): JSX.Element {
   return (
     <div className="flex items-center justify-center my-4 select-none">
-      <span className="px-3 py-1 rounded-full bg-surface border border-border text-[10px] font-bold text-muted uppercase tracking-wider shadow-2xs">
+      <span className="px-3 py-0.5 rounded-full border border-white/5 bg-transparent text-[10px] font-medium text-neutral-500 uppercase tracking-wider">
         {label}
       </span>
     </div>
   );
+});
+
+// ─── Memoized Message Bubble ──────────────────────────────────────────────────
+
+interface MessageBubbleProps {
+  item: IPrivateMessage & {
+    isGrouped: boolean;
+    isGroupLast: boolean;
+  };
+  isMine: boolean;
+  isHighlighted: boolean;
+  onInitiateReply: (msg: IPrivateMessage) => void;
+  onScrollToMessage: (id: string) => void;
+  onRetryMessage: (msg: IPrivateMessage) => void;
+  onDeleteFailedMessage: (tempId: string) => void;
+  onTouchStart: (e: React.TouchEvent, msg: IPrivateMessage) => void;
+  onTouchMove: (e: React.TouchEvent, msgId: string) => void;
+  onTouchEnd: (e: React.TouchEvent, msg: IPrivateMessage) => void;
+  swipingId: string | null;
+  swipeOffset: number;
 }
+
+const MessageBubble = React.memo(
+  function MessageBubble({
+    item,
+    isMine,
+    isHighlighted,
+    onInitiateReply,
+    onScrollToMessage,
+    onRetryMessage,
+    onDeleteFailedMessage,
+    onTouchStart,
+    onTouchMove,
+    onTouchEnd,
+    swipingId,
+    swipeOffset,
+  }: MessageBubbleProps) {
+    const isSending = item.status === "sending";
+    const isFailed = item.status === "failed";
+    const msgId = item.id || (item as any)._id || item.tempId;
+
+    return (
+      <div
+        id={`msg-${msgId}`}
+        onTouchStart={(e) => onTouchStart(e, item)}
+        onTouchMove={(e) => onTouchMove(e, item.id || item.tempId || "")}
+        onTouchEnd={(e) => onTouchEnd(e, item)}
+        className={`flex w-full ${isMine ? "justify-end" : "justify-start"} ${
+          isHighlighted ? "bg-white/5 py-1.5 rounded-xl px-2 transition-colors duration-500" : ""
+        }`}
+        style={{
+          transform:
+            swipingId === (item.id || item.tempId)
+              ? `translateX(${swipeOffset}px)`
+              : "translateX(0px)",
+          transition:
+            swipingId === (item.id || item.tempId)
+              ? "none"
+              : "transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)",
+        }}
+      >
+        <div className="relative group max-w-[80%] flex items-center">
+          <div
+            className={`px-4 py-2.5 w-full rounded-2xl transition-opacity ${
+              isMine
+                ? isFailed
+                  ? "bg-neutral-800 border border-red-500/40 text-neutral-200"
+                  : "bg-white text-black"
+                : "bg-neutral-800 text-neutral-200"
+            } ${isSending ? "opacity-80" : ""}`}
+          >
+            {/* Quoted Reply Block */}
+            {item.replyTo && (
+              <div
+                onClick={() => onScrollToMessage(item.replyTo!.id)}
+                className={`mb-2 cursor-pointer rounded-xl px-3 py-1.5 text-left transition-opacity select-none ${
+                  isMine && !isFailed
+                    ? "bg-black/5 border-l-2 border-l-black text-black/80 hover:opacity-80"
+                    : "bg-white/5 border-l-2 border-l-white/40 text-neutral-300 hover:opacity-80"
+                }`}
+              >
+                <span className="text-[10px] uppercase tracking-wider font-bold block mb-0.5 opacity-70">
+                  Reply
+                </span>
+                <p className="text-[11px] leading-snug line-clamp-1">
+                  {item.replyTo.content}
+                </p>
+              </div>
+            )}
+
+            {/* Message Content */}
+            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+              {item.content}
+            </p>
+
+            {/* Message Timestamp & Status Indicator */}
+            <div
+              className={`flex items-center justify-end gap-1.5 mt-1 ${
+                isMine && !isFailed ? "text-neutral-500" : "text-neutral-500"
+              }`}
+            >
+              <span className="text-[10px] tabular-nums select-none font-normal">
+                {formatMessageTime(item.createdAt)}
+              </span>
+
+              {/* Status icon for outbound messages */}
+              {isMine && (
+                <span className="inline-flex items-center select-none" title={item.status || "sent"}>
+                  {isSending ? (
+                    <Clock className="w-3 h-3 text-neutral-400 animate-pulse" />
+                  ) : isFailed ? (
+                    <div className="flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 text-red-400" />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRetryMessage(item);
+                        }}
+                        className="text-[10px] text-red-400 hover:underline flex items-center gap-0.5"
+                      >
+                        <RotateCcw className="w-2.5 h-2.5" />
+                        <span>Retry</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <Check className="w-3 h-3 text-neutral-400" />
+                  )}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Desktop Reply Action Button */}
+          {!isFailed && (
+            <div
+              className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 hidden md:flex flex-col gap-1 z-10 ${
+                isMine ? "left-[-36px]" : "right-[-36px]"
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => onInitiateReply(item)}
+                className="p-1.5 hover:bg-white/10 rounded-full text-neutral-400 hover:text-white transition-colors"
+                aria-label="Reply to message"
+                title="Reply"
+              >
+                <Reply className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  },
+  (prev, next) => {
+    return (
+      prev.item.id === next.item.id &&
+      prev.item.tempId === next.item.tempId &&
+      prev.item.content === next.item.content &&
+      prev.item.status === next.item.status &&
+      prev.item.createdAt === next.item.createdAt &&
+      prev.isMine === next.isMine &&
+      prev.isHighlighted === next.isHighlighted &&
+      prev.swipingId === next.swipingId &&
+      prev.swipeOffset === next.swipeOffset &&
+      prev.item.isGrouped === next.item.isGrouped &&
+      prev.item.isGroupLast === next.item.isGroupLast
+    );
+  }
+);
 
 // ─── Component Props ───────────────────────────────────────────────────────────
 
@@ -198,25 +318,34 @@ export default function ConversationView({
   const clientId = getAnonymousClientId();
   const { markRoomRead } = usePrivateUnread();
 
-  // State
-  const [messages, setMessages] = useState<IPrivateMessage[]>([]);
-  const [messagesLoading, setMessagesLoading] = useState(true);
+  // Check initial cache synchronously for instant zero-lag switching
+  const cachedData = useMemo(() => privateChatCache.getRoom(roomId), [roomId]);
+
+  // State initialized directly from cache if available
+  const [messages, setMessages] = useState<IPrivateMessage[]>(
+    cachedData?.messages || []
+  );
+  const [messagesLoading, setMessagesLoading] = useState<boolean>(!cachedData);
   const [messagesError, setMessagesError] = useState("");
-  const [roomLoading, setRoomLoading] = useState(true);
+  const [roomLoading, setRoomLoading] = useState<boolean>(!cachedData?.roomDetails);
   const [roomError, setRoomError] = useState("");
-  const [otherParticipantId, setOtherParticipantId] = useState<string | null>(null);
+  const [otherParticipantId, setOtherParticipantId] = useState<string | null>(
+    cachedData?.roomDetails
+      ? cachedData.roomDetails.participants.find((p) => p !== clientId) || cachedData.roomDetails.participants[0]
+      : null
+  );
   const [contactIdentity, setContactIdentity] = useState<ContactIdentityResponse | null>(
-    initialContactIdentity || null
+    initialContactIdentity || cachedData?.contactIdentity || null
   );
   const [isOtherUserOnline, setIsOtherUserOnline] = useState(false);
 
   // Pagination
-  const [hasMore, setHasMore] = useState(false);
-  const [nextCursor, setNextCursor] = useState<string | undefined>();
+  const [hasMore, setHasMore] = useState(cachedData?.hasMore ?? false);
+  const [nextCursor, setNextCursor] = useState<string | undefined>(cachedData?.nextCursor);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Composer
-  const [inputText, setInputText] = useState("");
+  const [inputText, setInputText] = useState(privateChatCache.getDraftText(roomId));
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState("");
   const [replyingTo, setReplyingTo] = useState<IPrivateMessage | null>(null);
@@ -235,61 +364,165 @@ export default function ConversationView({
 
   // Refs
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const topSentinelRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isInitialScrollDone = useRef(false);
 
-  // ── Fetch room details ──────────────────────────────────────────────────────
+  // ── Sync with Cache on Cache Events ─────────────────────────────────────────
+  useEffect(() => {
+    const unsubscribe = privateChatCache.subscribe((updatedRoomId) => {
+      if (!updatedRoomId || updatedRoomId === roomId) {
+        const cached = privateChatCache.getRoom(roomId);
+        if (cached) {
+          setMessages(cached.messages);
+          setHasMore(cached.hasMore);
+          setNextCursor(cached.nextCursor);
+          if (cached.contactIdentity) {
+            setContactIdentity(cached.contactIdentity);
+          }
+        }
+      }
+    });
+
+    return unsubscribe;
+  }, [roomId]);
+
+  // ── Fetch room details (Cache-first with background revalidation) ───────────
   const fetchRoom = useCallback(async () => {
-    setRoomLoading(true);
+    const cached = privateChatCache.getRoom(roomId);
+    if (!cached?.roomDetails) {
+      setRoomLoading(true);
+    }
     setRoomError("");
+
     try {
       const room = await getRoomById(roomId);
       const otherId = room.participants.find((p) => p !== clientId) || room.participants[0];
       setOtherParticipantId(otherId);
 
+      privateChatCache.setRoomData(roomId, { roomDetails: room });
+
       if (otherId && otherId !== "admin") {
         getContactIdentity(otherId)
           .then((identity) => {
             setContactIdentity(identity);
+            privateChatCache.setRoomData(roomId, { contactIdentity: identity });
             if (onContactUpdate) onContactUpdate(identity);
           })
           .catch(() => {});
       }
     } catch (err: unknown) {
-      setRoomError(err instanceof Error ? err.message : "Failed to load conversation details.");
+      if (!privateChatCache.getRoom(roomId)?.roomDetails) {
+        setRoomError(err instanceof Error ? err.message : "Failed to load conversation details.");
+      }
     } finally {
       setRoomLoading(false);
     }
   }, [roomId, clientId, onContactUpdate]);
 
-  // ── Fetch messages ──────────────────────────────────────────────────────────
+  // ── Fetch messages (Initial batch of 30, background revalidation) ───────────
   const fetchMessages = useCallback(async () => {
-    setMessagesLoading(true);
+    const cached = privateChatCache.getRoom(roomId);
+    if (!cached || cached.messages.length === 0) {
+      setMessagesLoading(true);
+    }
     setMessagesError("");
+
     try {
-      const result = await getMessages(roomId, 50);
-      setMessages(result.messages);
+      const result = await getMessages(roomId, 30);
+      
+      // Preserve any local optimistic "sending" or "failed" messages
+      const currentCache = privateChatCache.getRoom(roomId);
+      const pendingOptimistic = (currentCache?.messages || []).filter(
+        (m) => m.status === "sending" || m.status === "failed"
+      );
+
+      const serverIds = new Set(result.messages.map((m) => m.id || (m as any)._id));
+      const filteredOptimistic = pendingOptimistic.filter(
+        (m) => !serverIds.has(m.id) && !serverIds.has(m.tempId || "")
+      );
+      const merged = [...result.messages, ...filteredOptimistic];
+
+      // If messages changed or initial load, update state and cache
+      const isDifferent =
+        merged.length !== (currentCache?.messages.length || 0) ||
+        merged.some((m: IPrivateMessage, idx: number) => m.id !== currentCache?.messages[idx]?.id || m.status !== currentCache?.messages[idx]?.status);
+
+      if (isDifferent) {
+        setMessages(merged);
+        privateChatCache.setRoomData(roomId, {
+          messages: merged,
+          hasMore: result.hasMore,
+          nextCursor: result.nextCursor,
+        });
+      }
+
       setHasMore(result.hasMore);
       setNextCursor(result.nextCursor);
+
       markRoomRead(roomId);
-      requestAnimationFrame(() => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-      });
+
+      if (!isInitialScrollDone.current) {
+        requestAnimationFrame(() => {
+          if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+            isInitialScrollDone.current = true;
+          }
+        });
+      }
     } catch (err: unknown) {
-      setMessagesError(err instanceof Error ? err.message : "Failed to load messages.");
+      if (!privateChatCache.getRoom(roomId)?.messages.length) {
+        setMessagesError(err instanceof Error ? err.message : "Failed to load messages.");
+      }
     } finally {
       setMessagesLoading(false);
     }
   }, [roomId, markRoomRead]);
 
+  // When roomId changes: reset initial scroll flag & load room data synchronously
   useEffect(() => {
+    isInitialScrollDone.current = false;
+    const cached = privateChatCache.getRoom(roomId);
+    if (cached) {
+      setMessages(cached.messages);
+      setHasMore(cached.hasMore);
+      setNextCursor(cached.nextCursor);
+      setMessagesLoading(cached.messages.length === 0);
+      if (cached.roomDetails) {
+        const otherId = cached.roomDetails.participants.find((p) => p !== clientId) || cached.roomDetails.participants[0];
+        setOtherParticipantId(otherId);
+        setRoomLoading(false);
+      } else {
+        setRoomLoading(true);
+      }
+      if (cached.contactIdentity) {
+        setContactIdentity(cached.contactIdentity);
+      } else if (initialContactIdentity) {
+        setContactIdentity(initialContactIdentity);
+      }
+      requestAnimationFrame(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+          isInitialScrollDone.current = true;
+        }
+      });
+    } else {
+      setMessages([]);
+      setMessagesLoading(true);
+      setRoomLoading(true);
+      setOtherParticipantId(null);
+      setContactIdentity(initialContactIdentity || null);
+    }
+
+    setInputText(privateChatCache.getDraftText(roomId));
+    setReplyingTo(null);
+    setSendError("");
     fetchRoom();
     fetchMessages();
-  }, [fetchRoom, fetchMessages]);
+  }, [roomId, fetchRoom, fetchMessages, clientId, initialContactIdentity]);
 
   // ── Sockets ─────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -308,12 +541,7 @@ export default function ConversationView({
     const handleNewMessage = (msg: IPrivateMessage & { roomId?: string }) => {
       if (msg.roomId && msg.roomId !== roomId) return;
 
-      setMessages((prev) => {
-        const idToMatch = msg.id || (msg as any)._id;
-        if (prev.some((m) => (m.id || (m as any)._id) === idToMatch)) return prev;
-        return [...prev, msg];
-      });
-
+      privateChatCache.handleIncomingSocketMessage(roomId, msg);
       markRoomRead(roomId);
 
       if (scrollRef.current) {
@@ -386,7 +614,7 @@ export default function ConversationView({
       x: e.touches[0].clientX,
       y: e.touches[0].clientY,
     };
-    setSwipingId(msg.id);
+    setSwipingId(msg.id || msg.tempId || "");
     setSwipeOffset(0);
 
     longPressTimerRef.current = setTimeout(() => {
@@ -423,7 +651,8 @@ export default function ConversationView({
         clearTimeout(longPressTimerRef.current);
         longPressTimerRef.current = null;
       }
-      if (swipingId === msg.id) {
+      const currentId = msg.id || msg.tempId;
+      if (swipingId === currentId) {
         if (swipeOffset >= 50) {
           handleInitiateReply(msg);
         }
@@ -435,23 +664,39 @@ export default function ConversationView({
     [swipingId, swipeOffset, handleInitiateReply]
   );
 
-  // ── Load more ───────────────────────────────────────────────────────────────
+  // ── Load older messages (Pagination / Infinite scroll) ───────────────────────
   const handleLoadMore = useCallback(async () => {
     if (!hasMore || isLoadingMore || !nextCursor) return;
     setIsLoadingMore(true);
-    const prevScrollHeight = scrollRef.current?.scrollHeight ?? 0;
+    const scrollContainer = scrollRef.current;
+    const prevScrollHeight = scrollContainer?.scrollHeight ?? 0;
+    const prevScrollTop = scrollContainer?.scrollTop ?? 0;
+
     try {
-      const result = await getMessages(roomId, 50, nextCursor);
+      const result = await getMessages(roomId, 30, nextCursor);
+      
       setMessages((prev) => {
-        const existingIds = new Set(prev.map((m) => m.id || (m as any)._id));
+        const existingIds = new Set(prev.map((m) => m.id || (m as any)._id || m.tempId));
         const newMsgs = result.messages.filter((m) => !existingIds.has(m.id || (m as any)._id));
-        return [...newMsgs, ...prev];
+        const merged = [...newMsgs, ...prev];
+
+        privateChatCache.setRoomData(roomId, {
+          messages: merged,
+          hasMore: result.hasMore,
+          nextCursor: result.nextCursor,
+        });
+
+        return merged;
       });
+
       setHasMore(result.hasMore);
       setNextCursor(result.nextCursor);
+
+      // Preserve exact scroll position seamlessly
       requestAnimationFrame(() => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight - prevScrollHeight;
+        if (scrollContainer) {
+          const newScrollHeight = scrollContainer.scrollHeight;
+          scrollContainer.scrollTop = newScrollHeight - prevScrollHeight + prevScrollTop;
         }
       });
     } catch {
@@ -461,41 +706,108 @@ export default function ConversationView({
     }
   }, [hasMore, isLoadingMore, nextCursor, roomId]);
 
-  // ── Send message ────────────────────────────────────────────────────────────
+  // ── Intersection Observer for infinite scroll ───────────────────────────────
+  useEffect(() => {
+    const sentinel = topSentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore && !messagesLoading) {
+          handleLoadMore();
+        }
+      },
+      { root: scrollRef.current, threshold: 0.1 }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, isLoadingMore, messagesLoading, handleLoadMore]);
+
+  // ── Send Message with Optimistic UI ─────────────────────────────────────────
   const handleSend = useCallback(async () => {
     const trimmed = inputText.trim();
-    if (!trimmed || isSending) return;
+    if (!trimmed || isSending || !clientId) return;
     if (trimmed.length > 2000) {
       setSendError("Message cannot exceed 2000 characters.");
       return;
     }
-    setIsSending(true);
-    setSendError("");
-    try {
-      const replyToId = replyingTo ? replyingTo.id : undefined;
-      const msg = await sendMessage(roomId, trimmed, replyToId);
-      setMessages((prev) => {
-        const idToMatch = msg.id || (msg as any)._id;
-        if (prev.some((m) => (m.id || (m as any)._id) === idToMatch)) return prev;
-        return [...prev, msg];
-      });
-      setInputText("");
-      setReplyingTo(null);
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "auto";
-        textareaRef.current.focus();
-      }
-      requestAnimationFrame(() => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const replySnapshot = replyingTo
+      ? {
+          id: replyingTo.id,
+          senderId: replyingTo.senderId,
+          content: replyingTo.content,
         }
-      });
-    } catch (err) {
-      setSendError(err instanceof Error ? err.message : "Failed to send message.");
-    } finally {
-      setIsSending(false);
+      : null;
+
+    const optimisticMessage: IPrivateMessage = {
+      id: tempId,
+      tempId,
+      roomId,
+      senderId: clientId,
+      content: trimmed,
+      replyTo: replySnapshot,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: "sending",
+    };
+
+    // 1. Instantly append to state and cache
+    privateChatCache.appendOptimisticMessage(roomId, optimisticMessage);
+    setInputText("");
+    privateChatCache.setDraftText(roomId, "");
+    setReplyingTo(null);
+    setSendError("");
+
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.focus();
     }
-  }, [inputText, isSending, roomId, replyingTo]);
+
+    requestAnimationFrame(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
+    });
+
+    // 2. Perform backend API call asynchronously
+    try {
+      const serverMsg = await sendMessage(roomId, trimmed, replySnapshot?.id);
+      privateChatCache.resolveOptimisticMessage(roomId, tempId, serverMsg);
+    } catch {
+      privateChatCache.markOptimisticMessageFailed(roomId, tempId);
+    }
+  }, [inputText, isSending, clientId, roomId, replyingTo]);
+
+  // ── Retry Failed Message ────────────────────────────────────────────────────
+  const handleRetryMessage = useCallback(
+    async (msg: IPrivateMessage) => {
+      const tempId = msg.tempId || msg.id;
+      // Set back to sending status
+      privateChatCache.setRoomData(roomId, {
+        messages: (privateChatCache.getRoom(roomId)?.messages || []).map((m) =>
+          (m.tempId === tempId || m.id === tempId) ? { ...m, status: "sending" } : m
+        ),
+      });
+
+      try {
+        const serverMsg = await sendMessage(roomId, msg.content, msg.replyTo?.id);
+        privateChatCache.resolveOptimisticMessage(roomId, tempId, serverMsg);
+      } catch {
+        privateChatCache.markOptimisticMessageFailed(roomId, tempId);
+      }
+    },
+    [roomId]
+  );
+
+  const handleDeleteFailedMessage = useCallback(
+    (tempId: string) => {
+      privateChatCache.removeOptimisticMessage(roomId, tempId);
+    },
+    [roomId]
+  );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -507,34 +819,97 @@ export default function ConversationView({
     [handleSend]
   );
 
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInputText(e.target.value);
-    setSendError("");
-    const el = e.target;
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
-  }, []);
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const val = e.target.value;
+      setInputText(val);
+      privateChatCache.setDraftText(roomId, val);
+      setSendError("");
+      const el = e.target;
+      el.style.height = "auto";
+      el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+    },
+    [roomId]
+  );
 
   const handleContactRenamed = useCallback(
     (updated: ContactIdentityResponse) => {
       setContactIdentity(updated);
+      privateChatCache.setRoomData(roomId, { contactIdentity: updated });
       if (onContactUpdate) {
         onContactUpdate(updated);
       }
     },
-    [onContactUpdate]
+    [roomId, onContactUpdate]
   );
 
+  // ── Build Grouped Messages List (Memoized for high performance) ─────────────
+  const groupedMessageList = useMemo(() => {
+    const result: Array<
+      | { type: "separator"; label: string; key: string }
+      | (IPrivateMessage & {
+          type: "message";
+          isGrouped: boolean;
+          isGroupLast: boolean;
+        })
+    > = [];
+
+    let lastDate: Date | null = null;
+
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      const msgDate = new Date(msg.createdAt);
+
+      if (!lastDate || !isSameCalendarDay(lastDate, msgDate)) {
+        result.push({
+          type: "separator",
+          label: getDateLabel(msgDate),
+          key: `sep-${msgDate.toISOString()}-${i}`,
+        });
+        lastDate = msgDate;
+      }
+
+      const prevMsg = i > 0 ? messages[i - 1] : null;
+      const nextMsg = i < messages.length - 1 ? messages[i + 1] : null;
+
+      const prevDate = prevMsg ? new Date(prevMsg.createdAt) : null;
+      const nextDate = nextMsg ? new Date(nextMsg.createdAt) : null;
+
+      const isGrouped =
+        !!prevMsg &&
+        prevMsg.senderId === msg.senderId &&
+        !!prevDate &&
+        isSameCalendarDay(prevDate, msgDate) &&
+        msgDate.getTime() - prevDate.getTime() < 5 * 60 * 1000;
+
+      const isGroupLast =
+        !nextMsg ||
+        nextMsg.senderId !== msg.senderId ||
+        !nextDate ||
+        !isSameCalendarDay(nextDate, msgDate) ||
+        nextDate.getTime() - msgDate.getTime() >= 5 * 60 * 1000;
+
+      result.push({
+        ...msg,
+        type: "message",
+        isGrouped,
+        isGroupLast,
+      });
+    }
+
+    return result;
+  }, [messages]);
+
   // ── Render: room error ──────────────────────────────────────────────────────
-  if (!roomLoading && roomError) {
+  if (!roomLoading && roomError && messages.length === 0) {
     return (
-      <div className="flex flex-col h-full bg-surface">
+      <div className="flex flex-col h-full bg-black">
         {onBack && (
-          <header className="flex-shrink-0 border-b border-border bg-surface px-4 py-3">
+          <header className="flex-shrink-0 border-b border-white/5 bg-black px-4 py-3">
             <button
               type="button"
               onClick={onBack}
-              className="p-1.5 rounded-lg border border-border text-muted hover:text-foreground hover:bg-elevated transition-colors"
+              className="p-1.5 rounded-full border border-white/10 text-neutral-400 hover:text-white hover:bg-white/5 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
@@ -542,11 +917,14 @@ export default function ConversationView({
         )}
         <div className="flex flex-1 items-center justify-center p-6 text-center">
           <div className="max-w-xs space-y-3">
-            <p className="text-sm font-semibold text-foreground">{roomError}</p>
+            <p className="text-sm font-medium text-white">{roomError}</p>
             <button
               type="button"
-              onClick={fetchRoom}
-              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition-colors"
+              onClick={() => {
+                fetchRoom();
+                fetchMessages();
+              }}
+              className="px-3.5 py-1.5 bg-white text-black hover:bg-neutral-200 text-xs font-semibold rounded-full transition-colors"
             >
               Retry
             </button>
@@ -563,15 +941,15 @@ export default function ConversationView({
 
   // ── Main Render ─────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-full bg-background overflow-hidden min-w-0">
+    <div className="flex flex-col h-full bg-black overflow-hidden min-w-0">
       {/* Header */}
-      <header className="h-14 px-4 border-b border-border bg-surface flex items-center justify-between shrink-0 z-10">
+      <header className="h-14 px-4 border-b border-white/5 bg-black/90 backdrop-blur-md flex items-center justify-between shrink-0 z-10">
         <div className="flex items-center gap-3 min-w-0">
           {onBack && (
             <button
               type="button"
               onClick={onBack}
-              className="p-1.5 rounded-lg border border-border text-muted hover:text-foreground hover:bg-elevated transition-colors"
+              className="p-1.5 rounded-full border border-white/10 text-neutral-400 hover:text-white hover:bg-white/5 transition-colors"
               aria-label="Back to conversations"
               title="Back"
             >
@@ -579,41 +957,34 @@ export default function ConversationView({
             </button>
           )}
 
-          <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-              isDeveloperRoom
-                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-            }`}
-          >
+          <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 text-neutral-300 flex items-center justify-center text-xs font-medium shrink-0">
             {isDeveloperRoom ? <Wrench className="w-4 h-4" /> : <User className="w-4 h-4" />}
           </div>
 
           <div className="min-w-0">
-            {roomLoading ? (
+            {roomLoading && !otherParticipantId ? (
               <HeaderSkeleton />
             ) : (
               <>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-sm text-foreground truncate">{displayName}</span>
+                  <span className="font-medium text-sm text-white truncate">{displayName}</span>
                   {isDeveloperRoom ? (
-                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0 uppercase tracking-wider">
+                    <span className="border border-white/10 text-neutral-400 bg-transparent text-[10px] font-medium tracking-wider uppercase px-2 py-0.5 rounded-full shrink-0">
                       Developer Chat
                     </span>
                   ) : (
-                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+                    <span className="border border-white/10 text-neutral-400 bg-transparent text-[10px] font-medium tracking-wider uppercase px-2 py-0.5 rounded-full shrink-0">
                       Private 1-on-1
                     </span>
                   )}
                 </div>
                 <div className="flex items-center gap-1.5">
                   {!isDeveloperRoom && isOtherUserOnline && (
-                    <span className="flex h-2 w-2 relative flex-shrink-0" title="Online">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                    <span className="flex h-1.5 w-1.5 relative flex-shrink-0" title="Online">
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-neutral-300" />
                     </span>
                   )}
-                  <p className="text-[11px] text-muted truncate">
+                  <p className="text-[11px] text-neutral-500 font-normal truncate">
                     {isDeveloperRoom
                       ? "Official Developer Support"
                       : isOtherUserOnline
@@ -632,10 +1003,10 @@ export default function ConversationView({
             <button
               type="button"
               onClick={() => setIsRenameModalOpen(true)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-border text-secondary hover:text-foreground hover:bg-elevated transition-colors"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border border-white/10 text-neutral-400 hover:text-white hover:bg-white/5 transition-colors"
               title="Rename contact locally"
             >
-              <Pencil className="w-3.5 h-3.5 text-blue-500" />
+              <Pencil className="w-3.5 h-3.5 text-neutral-400" />
               <span className="hidden sm:inline">Rename</span>
             </button>
           )}
@@ -644,7 +1015,7 @@ export default function ConversationView({
             type="button"
             onClick={fetchMessages}
             disabled={messagesLoading}
-            className="p-2 text-muted hover:text-foreground rounded-lg hover:bg-elevated transition-colors disabled:opacity-50"
+            className="p-2 text-neutral-400 hover:text-white rounded-full hover:bg-white/5 transition-colors disabled:opacity-40"
             aria-label="Refresh messages"
             title="Refresh messages"
           >
@@ -655,14 +1026,14 @@ export default function ConversationView({
             <button
               type="button"
               onClick={() => setIsMenuOpen((prev) => !prev)}
-              className="p-2 text-muted hover:text-foreground rounded-lg hover:bg-elevated transition-colors"
+              className="p-2 text-neutral-400 hover:text-white rounded-full hover:bg-white/5 transition-colors"
               aria-label="More options"
             >
               <MoreVertical className="w-4 h-4" />
             </button>
 
             {isMenuOpen && (
-              <div className="absolute right-0 mt-1.5 z-30 w-48 rounded-xl border border-border bg-surface shadow-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150 py-1">
+              <div className="absolute right-0 mt-1.5 z-30 w-48 rounded-2xl border border-white/10 bg-neutral-900 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 py-1">
                 {!isDeveloperRoom && (
                   <button
                     type="button"
@@ -670,9 +1041,9 @@ export default function ConversationView({
                       setIsMenuOpen(false);
                       setIsRenameModalOpen(true);
                     }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-foreground hover:bg-elevated transition-colors text-left"
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-neutral-200 hover:bg-white/5 transition-colors text-left"
                   >
-                    <UserPen className="w-3.5 h-3.5 text-blue-500" />
+                    <UserPen className="w-3.5 h-3.5 text-neutral-400" />
                     <span>Rename Contact</span>
                   </button>
                 )}
@@ -682,9 +1053,9 @@ export default function ConversationView({
                     setIsMenuOpen(false);
                     setIsInfoModalOpen(true);
                   }}
-                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-foreground hover:bg-elevated transition-colors text-left"
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-neutral-200 hover:bg-white/5 transition-colors text-left"
                 >
-                  <Info className="w-3.5 h-3.5 text-secondary" />
+                  <Info className="w-3.5 h-3.5 text-neutral-400" />
                   <span>Anonymous Chat Info</span>
                 </button>
               </div>
@@ -694,7 +1065,7 @@ export default function ConversationView({
       </header>
 
       {/* Messages Thread */}
-      <div
+      <ScrollArea
         ref={scrollRef}
         onScroll={() => {
           if (scrollRef.current) {
@@ -704,17 +1075,20 @@ export default function ConversationView({
             }
           }
         }}
-        className="flex-1 min-h-0 overflow-y-auto w-full p-4 sm:p-6 space-y-4"
+        className="flex-1 min-h-0 w-full p-4 sm:p-6 space-y-4 bg-black"
         aria-label="Conversation messages"
       >
-        {/* Load More Button */}
+        {/* Top Sentinel for Infinite Scroll Intersection Observer */}
+        <div ref={topSentinelRef} className="h-1 w-full pointer-events-none" />
+
+        {/* Load More Indicator / Button */}
         {hasMore && (
           <div className="flex justify-center py-1">
             <button
               type="button"
               onClick={handleLoadMore}
               disabled={isLoadingMore}
-              className="flex items-center gap-2 px-3 py-1 rounded-full bg-surface border border-border text-[11px] text-secondary font-semibold hover:bg-elevated transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 text-[11px] text-neutral-400 font-medium hover:text-white hover:bg-white/5 transition-colors disabled:opacity-40"
             >
               {isLoadingMore ? (
                 <>
@@ -728,17 +1102,17 @@ export default function ConversationView({
           </div>
         )}
 
-        {/* Loading Skeleton */}
-        {messagesLoading && <MessageSkeleton />}
+        {/* Initial Loading Skeleton */}
+        {messagesLoading && messages.length === 0 && <MessageSkeleton />}
 
         {/* Messages Error */}
-        {!messagesLoading && messagesError && (
+        {!messagesLoading && messagesError && messages.length === 0 && (
           <div className="flex flex-col items-center justify-center py-10 text-center space-y-2">
-            <p className="text-xs text-red-500 font-medium">{messagesError}</p>
+            <p className="text-xs text-neutral-400 font-normal">{messagesError}</p>
             <button
               type="button"
               onClick={fetchMessages}
-              className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg"
+              className="px-3 py-1 bg-white text-black hover:bg-neutral-200 text-xs font-semibold rounded-full"
             >
               Try again
             </button>
@@ -748,109 +1122,45 @@ export default function ConversationView({
         {/* Empty State */}
         {!messagesLoading && !messagesError && messages.length === 0 && (
           <div className="flex flex-col items-center justify-center flex-1 py-16 text-center select-none space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center mx-auto">
-              <MessageSquare className="w-6 h-6" />
+            <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 text-neutral-400 flex items-center justify-center mx-auto">
+              <MessageSquare className="w-5 h-5" />
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-bold text-foreground">Start the conversation</p>
-              <p className="text-xs text-muted max-w-xs mx-auto">
+              <p className="text-sm font-medium text-white">Start the conversation</p>
+              <p className="text-xs text-neutral-500 font-normal max-w-xs mx-auto">
                 Send a message to start chatting anonymously in this private thread.
               </p>
             </div>
           </div>
         )}
 
-        {/* Message Bubbles */}
-        {!messagesLoading &&
-          !messagesError &&
-          messages.length > 0 &&
-          buildMessageList(messages).map((item, listIndex, arr) => {
-            if (item.type === "separator") {
-              return <DateSeparator key={item.key} label={item.label} />;
-            }
+        {/* Memoized Message Bubbles */}
+        {groupedMessageList.map((item) => {
+          if (item.type === "separator") {
+            return <DateSeparator key={item.key} label={item.label} />;
+          }
 
-            const isMine = item.senderId === clientId;
-            const msgKey = item.id || (item as any)._id || `msg-${listIndex}`;
+          const isMine = item.senderId === clientId;
+          const msgKey = item.id || (item as any)._id || item.tempId;
 
-            return (
-              <div
-                key={msgKey}
-                id={`msg-${item.id || (item as any)._id}`}
-                onTouchStart={(e) => handleTouchStartMessage(e, item)}
-                onTouchMove={(e) => handleTouchMoveMessage(e, item.id)}
-                onTouchEnd={(e) => handleTouchEndMessage(e, item)}
-                className={`flex w-full ${isMine ? "justify-end" : "justify-start"} ${
-                  highlightedMessageId === item.id
-                    ? "bg-blue-500/10 py-1.5 rounded-xl px-2 transition-colors duration-500"
-                    : ""
-                }`}
-                style={{
-                  transform:
-                    swipingId === item.id ? `translateX(${swipeOffset}px)` : "translateX(0px)",
-                  transition:
-                    swipingId === item.id ? "none" : "transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)",
-                }}
-              >
-                <div className="relative group max-w-[85%] md:max-w-[70%] flex items-center">
-                  <div
-                    className={`px-3.5 py-2.5 w-full shadow-xs ${
-                      isMine
-                        ? "bg-blue-600 text-white rounded-2xl rounded-tr-xs border border-blue-500/30"
-                        : "bg-surface border border-border text-foreground rounded-2xl rounded-tl-xs"
-                    }`}
-                  >
-                    {/* Quoted Reply Block */}
-                    {item.replyTo && (
-                      <div
-                        onClick={() => handleScrollToMessage(item.replyTo!.id)}
-                        className={`mb-2 cursor-pointer rounded-lg border-l-[3px] px-2.5 py-1.5 text-left transition-colors select-none ${
-                          isMine
-                            ? "bg-blue-700/60 border-l-white text-white/90 hover:bg-blue-700/80"
-                            : "bg-black/5 dark:bg-white/5 border-l-blue-500 text-foreground/80 hover:bg-black/10 dark:hover:bg-white/10"
-                        }`}
-                      >
-                        <span className="text-[10px] uppercase tracking-wider font-bold block mb-0.5 opacity-80">
-                          Reply
-                        </span>
-                        <p className="text-[11px] leading-snug line-clamp-1">
-                          {item.replyTo.content}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Message Content */}
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                      {item.content}
-                    </p>
-
-                    {/* Message Timestamp */}
-                    <div className={`flex justify-end mt-1 ${isMine ? "text-white/80" : "text-muted"}`}>
-                      <span className="text-[10px] tabular-nums select-none font-medium">
-                        {formatMessageTime(item.createdAt)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Desktop Reply Action Button */}
-                  <div
-                    className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 hidden md:flex flex-col gap-1 z-10 ${
-                      isMine ? "left-[-36px]" : "right-[-36px]"
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => handleInitiateReply(item)}
-                      className="p-1.5 hover:bg-elevated rounded-full text-secondary hover:text-foreground transition-colors"
-                      aria-label="Reply to message"
-                      title="Reply"
-                    >
-                      <Reply className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          return (
+            <MessageBubble
+              key={msgKey}
+              item={item}
+              isMine={isMine}
+              isHighlighted={highlightedMessageId === item.id}
+              onInitiateReply={handleInitiateReply}
+              onScrollToMessage={handleScrollToMessage}
+              onRetryMessage={handleRetryMessage}
+              onDeleteFailedMessage={handleDeleteFailedMessage}
+              onTouchStart={handleTouchStartMessage}
+              onTouchMove={handleTouchMoveMessage}
+              onTouchEnd={handleTouchEndMessage}
+              swipingId={swipingId}
+              swipeOffset={swipeOffset}
+            />
+          );
+        })}
 
         {/* New Messages Floating Button */}
         {showNewMessageBanner && (
@@ -863,25 +1173,25 @@ export default function ConversationView({
                 }
                 setShowNewMessageBanner(false);
               }}
-              className="pointer-events-auto flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-lg transition-transform hover:scale-105 active:scale-95"
+              className="pointer-events-auto flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white text-black text-xs font-semibold shadow-lg hover:bg-neutral-200 transition-transform hover:scale-105 active:scale-95"
             >
               <span>New messages</span>
             </button>
           </div>
         )}
-      </div>
+      </ScrollArea>
 
       {/* Composer */}
-      <div className="border-t border-border bg-surface shrink-0">
+      <div className="border-t border-white/5 bg-black shrink-0">
         {/* Reply Preview Banner */}
         {replyingTo && (
-          <div className="border-b border-border bg-surface/70 px-4 py-2 flex items-center justify-between gap-3 animate-in slide-in-from-bottom-2 duration-150">
-            <div className="flex items-start gap-2.5 min-w-0 border-l-[3px] border-l-blue-500 pl-2.5">
+          <div className="border-b border-white/5 bg-neutral-900/60 px-4 py-2 flex items-center justify-between gap-3 animate-in slide-in-from-bottom-2 duration-150">
+            <div className="flex items-start gap-2.5 min-w-0 border-l-2 border-l-white pl-2.5">
               <div className="min-w-0 flex-1">
-                <span className="text-[10px] uppercase tracking-wider font-bold text-blue-500">
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-neutral-400">
                   Replying to Message
                 </span>
-                <p className="text-xs text-foreground/80 line-clamp-1 leading-relaxed">
+                <p className="text-xs text-neutral-300 line-clamp-1 leading-relaxed">
                   {replyingTo.content}
                 </p>
               </div>
@@ -889,7 +1199,7 @@ export default function ConversationView({
             <button
               type="button"
               onClick={() => setReplyingTo(null)}
-              className="p-1 text-muted hover:text-foreground rounded-md transition-colors"
+              className="p-1 text-neutral-400 hover:text-white rounded-md transition-colors"
               aria-label="Cancel reply"
             >
               <X className="w-4 h-4" />
@@ -897,46 +1207,39 @@ export default function ConversationView({
           </div>
         )}
 
-        <div className="p-3">
+        <div className="p-3 sm:p-4">
           <form
             onSubmit={(e) => {
               e.preventDefault();
               handleSend();
             }}
-            className="flex items-end gap-2"
+            className="flex items-center w-full bg-white/5 border border-white/10 rounded-full px-4 py-2 gap-2 focus-within:border-white/20 transition-colors"
           >
-            <div className="flex-1 min-w-0 relative bg-background rounded-xl border border-border focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-colors">
-              <textarea
-                ref={textareaRef}
-                value={inputText}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                placeholder={
-                  isDeveloperRoom ? "Send a message to Developer…" : "Type your message…"
-                }
-                maxLength={2000}
-                rows={1}
-                disabled={isSending}
-                className="w-full bg-transparent px-3.5 py-2.5 text-xs text-foreground placeholder:text-muted focus:outline-none resize-none min-h-[42px] max-h-[120px] overflow-y-auto"
-              />
-            </div>
+            <textarea
+              ref={textareaRef}
+              value={inputText}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              placeholder={
+                isDeveloperRoom ? "Send a message to Developer…" : "Type your message…"
+              }
+              maxLength={2000}
+              rows={1}
+              className="flex-1 bg-transparent text-white placeholder-neutral-500 text-xs sm:text-sm focus:outline-none resize-none min-h-[22px] max-h-[120px] py-1 leading-normal"
+            />
 
             <button
               type="submit"
-              disabled={isSending || !inputText.trim()}
-              className="w-10 h-10 rounded-xl bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center shrink-0 transition-colors disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={!inputText.trim()}
+              className="text-neutral-400 hover:text-white transition-colors p-2 rounded-full disabled:opacity-30 flex items-center justify-center shrink-0"
               aria-label="Send message"
             >
-              {isSending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
+              <Send className="w-4 h-4" />
             </button>
           </form>
 
           {sendError && (
-            <p className="text-[11px] text-red-500 font-medium mt-1.5 px-1">{sendError}</p>
+            <p className="text-[11px] text-neutral-400 font-normal mt-1.5 px-4">{sendError}</p>
           )}
         </div>
       </div>
@@ -964,7 +1267,7 @@ export default function ConversationView({
       {actionSheetMsg && (
         <>
           <div
-            className="fixed inset-0 z-40 bg-black/50"
+            className="fixed inset-0 z-40 bg-black/70 backdrop-blur-xs"
             onClick={() => setActionSheetMsg(null)}
             aria-hidden="true"
           />
@@ -972,11 +1275,11 @@ export default function ConversationView({
             role="dialog"
             aria-modal="true"
             aria-label="Message actions"
-            className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl bg-surface border-t border-border shadow-xl animate-in slide-in-from-bottom-4 duration-200 pb-[env(safe-area-inset-bottom)]"
+            className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl bg-neutral-900 border-t border-white/10 shadow-2xl animate-in slide-in-from-bottom-4 duration-200 pb-[env(safe-area-inset-bottom)] text-white"
           >
             <div className="flex flex-col">
-              <div className="flex justify-center py-2">
-                <div className="w-8 h-1 rounded-full bg-border" />
+              <div className="flex justify-center py-2.5">
+                <div className="w-8 h-1 rounded-full bg-white/20" />
               </div>
               <button
                 type="button"
@@ -984,16 +1287,16 @@ export default function ConversationView({
                   handleInitiateReply(actionSheetMsg);
                   setActionSheetMsg(null);
                 }}
-                className="flex items-center gap-3 w-full px-5 py-3.5 text-left text-sm font-medium text-foreground hover:bg-elevated transition-colors"
+                className="flex items-center gap-3 w-full px-5 py-3.5 text-left text-sm font-medium text-white hover:bg-white/5 transition-colors"
               >
-                <Reply className="w-4 h-4 text-blue-500" />
+                <Reply className="w-4 h-4 text-neutral-400" />
                 <span>Reply</span>
               </button>
-              <div className="h-px bg-border mx-5 my-1" />
+              <div className="h-px bg-white/5 mx-5 my-1" />
               <button
                 type="button"
                 onClick={() => setActionSheetMsg(null)}
-                className="flex items-center justify-center w-full px-5 py-3.5 text-sm font-medium text-muted hover:bg-elevated transition-colors"
+                className="flex items-center justify-center w-full px-5 py-3.5 text-sm font-medium text-neutral-400 hover:text-white hover:bg-white/5 transition-colors"
               >
                 Cancel
               </button>

@@ -15,6 +15,7 @@ import {
 import { getSocket } from "@/app/utils/socket";
 import AdminShell from "@/app/admin/components/AdminShell";
 import AdminPageHeader from "@/app/admin/components/AdminPageHeader";
+import ScrollArea from "@/app/components/ScrollArea";
 import {
   MessageSquare,
   Search,
@@ -455,7 +456,7 @@ export default function AdminChatClient({ selectedRoomId }: AdminChatClientProps
           </div>
 
           {/* List Items Scroll Area */}
-          <div className="flex-1 overflow-y-auto divide-y divide-border">
+          <ScrollArea className="flex-1 divide-y divide-border">
             {isRoomsLoading ? (
               <div className="p-6 text-center space-y-3">
                 <Loader2 className="w-6 h-6 animate-spin text-blue-500 mx-auto" />
@@ -536,7 +537,7 @@ export default function AdminChatClient({ selectedRoomId }: AdminChatClientProps
                 );
               })
             )}
-          </div>
+          </ScrollArea>
         </div>
 
         {/* RIGHT COLUMN: Active Conversation Workspace */}
@@ -548,29 +549,34 @@ export default function AdminChatClient({ selectedRoomId }: AdminChatClientProps
           {selectedRoomId && activeRoom ? (
             <>
               {/* Conversation Header */}
-              <div className="h-14 px-4 border-b border-border bg-surface flex items-center justify-between shrink-0 z-10">
+              <div className="p-3 sm:p-4 border-b border-border bg-surface flex items-center justify-between gap-3 shrink-0">
                 <div className="flex items-center gap-3 min-w-0">
                   <button
                     type="button"
                     onClick={() => router.push("/admin/chat")}
-                    className="p-1.5 rounded-lg border border-border text-muted hover:text-foreground hover:bg-elevated lg:hidden"
+                    className="p-1.5 text-muted hover:text-foreground rounded-lg hover:bg-elevated transition-colors lg:hidden"
                     aria-label="Back to conversations list"
                   >
                     <ArrowLeft className="w-4 h-4" />
                   </button>
-                  <div className="min-w-0">
+
+                  <div className="w-8 h-8 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center text-xs font-bold shrink-0">
+                    <User className="w-4 h-4" />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-sm text-foreground truncate">
+                      <h2 className="text-sm font-bold text-foreground truncate">
                         {activeRoom.adminLabel || getAnonymousLabel(activeRoom)}
-                      </span>
-                      <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-blue-500/10 text-blue-500 shrink-0">
-                        Developer Chat
-                      </span>
+                      </h2>
+                      {activeRoom.adminLabel && (
+                        <span className="text-[10px] bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold px-2 py-0.5 rounded-full shrink-0">
+                          Custom Label
+                        </span>
+                      )}
                     </div>
-                    <p className="text-[11px] text-muted truncate">
-                      {activeRoom.adminLabel
-                        ? `${getAnonymousLabel(activeRoom)} • Anonymous Member`
-                        : "Anonymous Community Member"}
+                    <p className="text-[11px] text-muted font-mono truncate">
+                      ID: {getAnonymousLabel(activeRoom)}
                     </p>
                   </div>
                 </div>
@@ -602,7 +608,7 @@ export default function AdminChatClient({ selectedRoomId }: AdminChatClientProps
               </div>
 
               {/* Message History Thread - Matching User Community Chat UI */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2">
+              <ScrollArea className="flex-1 p-4 sm:p-6 space-y-2">
                 {isMessagesLoading ? (
                   <div className="py-12 flex flex-col items-center justify-center gap-2">
                     <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
@@ -627,15 +633,14 @@ export default function AdminChatClient({ selectedRoomId }: AdminChatClientProps
                 ) : (
                   messages.map((msg, index) => {
                     const isAdmin = msg.senderId === "admin";
-                    const msgKey = msg.id || (msg as any)._id || `msg-${index}`;
                     return (
                       <div
-                        key={msgKey}
-                        id={`msg-${msg.id || (msg as any)._id}`}
+                        id={`msg-${msg.id}`}
+                        key={msg.id || `admin-msg-${index}`}
                         onTouchStart={(e) => handleTouchStartMessage(e, msg)}
                         onTouchMove={(e) => handleTouchMoveMessage(e, msg.id)}
                         onTouchEnd={(e) => handleTouchEndMessage(e, msg)}
-                        className={`flex w-full transition-all duration-500 ${
+                        className={`flex w-full ${
                           isAdmin ? "justify-end" : "justify-start"
                         } ${
                           highlightedMessageId === msg.id
@@ -703,8 +708,8 @@ export default function AdminChatClient({ selectedRoomId }: AdminChatClientProps
 
                           {/* Desktop Hover Action: Reply button */}
                           <div
-                            className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150 hidden md:flex flex-col gap-1 z-10 ${
-                              isAdmin ? "left-[-40px]" : "right-[-40px]"
+                            className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity hidden md:flex items-center ${
+                              isAdmin ? "-left-10" : "-right-10"
                             }`}
                           >
                             <button
@@ -723,7 +728,7 @@ export default function AdminChatClient({ selectedRoomId }: AdminChatClientProps
                   })
                 )}
                 <div ref={messagesEndRef} />
-              </div>
+              </ScrollArea>
 
               {/* Message Composer & Reply Bar */}
               <div className="flex-shrink-0 border-t border-border bg-surface w-full">

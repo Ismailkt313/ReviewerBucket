@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import { env } from "./config/env";
+import { corsOptions } from "./config/cors.js";
 import { notFoundMiddleware } from "./middleware/not-found.middleware";
 import { errorMiddleware } from "./middleware/error.middleware";
 import reviewerRoutes from "./modules/reviewers/reviewer.routes";
@@ -20,13 +20,7 @@ import broadcastRoutes from "./modules/broadcasts/broadcast.routes.js";
 const app = express();
 
 app.use(helmet());
-app.use(
-  cors({
-    origin: env.CLIENT_URL,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "x-anonymous-client-id"]
-  })
-);
+app.use(cors(corsOptions));
 app.use(express.json({ limit: "10kb" }));
 
 app.get("/api/health", (_req, res) => {

@@ -6,6 +6,7 @@ import { Socket } from "socket.io-client";
 import { getSocket } from "@/app/utils/socket";
 import { useVisualViewport } from "@/app/hooks/useVisualViewport";
 import NotificationPanel from "../components/NotificationPanel";
+import ScrollArea from "../components/ScrollArea";
 import { useCommunityUnread } from "../hooks/useCommunityUnread";
 import { usePrivateUnread } from "../hooks/usePrivateUnread";
 import { createOrGetPrivateRoom } from "../services/private-rooms";
@@ -633,9 +634,9 @@ export default function CommunityClient() {
       </header>
 
       <main className="flex-1 min-h-0 flex flex-col">
-        <div
+        <ScrollArea
           ref={scrollRef}
-          className="flex-1 min-h-0 overflow-y-auto w-full scroll-smooth"
+          className="flex-1 min-h-0 w-full scroll-smooth"
         >
           <div className="w-full max-w-[1000px] mx-auto px-4 sm:px-6 md:px-8 py-3 flex flex-col gap-1.5 min-h-full">
             {isLoadingMore && (
@@ -667,13 +668,13 @@ export default function CommunityClient() {
                       className={`px-3.5 py-2 w-full ${
                         msg.isMine
                           ? "rounded-2xl rounded-br-sm bg-bubble-mine text-bubble-mine-text"
-                          : "rounded-2xl rounded-bl-sm bg-bubble-other text-bubble-other-text"
+                          : "rounded-2xl rounded-bl-sm bg-bubble-other text-bubble-other-text border border-border/50"
                       }`}
                     >
                       <div className="flex items-start gap-2">
                         {!msg.isMine && (
                           <span
-                            className="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0"
+                            className="w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0"
                             style={{ backgroundColor: msg.color || "#808080" }}
                             title="Anonymous user color identity"
                           />
@@ -683,11 +684,13 @@ export default function CommunityClient() {
                             <div
                               onClick={() => handleScrollToMessage(msg.replyTo!.id)}
                               className="mb-1.5 cursor-pointer rounded-lg bg-black/5 dark:bg-white/5 border-l-[3px] px-2.5 py-1 text-left hover:bg-black/10 dark:hover:bg-white/10 transition-colors select-none"
-                              style={{ borderColor: msg.replyTo.color }}
+                              style={{ borderLeftColor: msg.replyTo.color }}
                             >
                               <div className="flex items-center gap-1.5 mb-0.5">
                                 <span className="w-1 h-1 rounded-full" style={{ backgroundColor: msg.replyTo.color }} />
-                                <span className="text-[9px] uppercase tracking-wider font-bold text-secondary">Reply</span>
+                                <span className="text-[9px] uppercase tracking-wider font-bold text-secondary">
+                                  Reply
+                                </span>
                               </div>
                               <p className="text-[11px] leading-snug text-foreground/70 line-clamp-1 select-none">
                                 {msg.replyTo.content}
@@ -765,7 +768,7 @@ export default function CommunityClient() {
               </div>
             )}
           </div>
-        </div>
+        </ScrollArea>
 
         {unreadCount > 0 && (
           <div className="relative">

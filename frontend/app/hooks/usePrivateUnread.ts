@@ -53,14 +53,14 @@ export function usePrivateUnread() {
       const socket = getSocket();
       if (socket && socket.connected) {
         socket.emit("private:room:read", { roomId });
+      } else {
+        await fetch(getApiUrl(`/api/private-rooms/${roomId}/read`), {
+          method: "PUT",
+          headers: {
+            "x-anonymous-client-id": clientId
+          }
+        });
       }
-
-      await fetch(getApiUrl(`/api/private-rooms/${roomId}/read`), {
-        method: "PUT",
-        headers: {
-          "x-anonymous-client-id": clientId
-        }
-      });
     } catch (err) {
       console.warn("[PrivateChats] Could not mark room as read:", err);
     }

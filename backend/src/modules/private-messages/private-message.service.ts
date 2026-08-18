@@ -39,19 +39,9 @@ export class PrivateMessageService {
     // Create message with server-derived sender identity
     const message = await this.repository.create(roomId, trimmedUser, content, replyToId);
 
-    // Update sender's read state to current time so own message is marked read
-    try {
-      await this.privateRoomService.markRoomAsRead(roomId, trimmedUser);
-    } catch {
-      // ignore
-    }
-
-    // Update room updatedAt timestamp to reflect recent activity
-    try {
-      await PrivateRoomModel.findByIdAndUpdate(roomId, { updatedAt: new Date() });
-    } catch {
-      // Non-critical background update error ignored
-    }
+    // Non-blocking updates: read state and room activity timestamp
+    this.privateRoomService.markRoomAsRead(roomId, trimmedUser).catch(() => {});
+    PrivateRoomModel.findByIdAndUpdate(roomId, { updatedAt: new Date() }).catch(() => {});
 
     // Emit real-time message and unread increment to recipient
     const otherParticipant = room.participants.find((p) => p !== trimmedUser);
@@ -85,16 +75,8 @@ export class PrivateMessageService {
     // Verify room exists and current user is an authorized participant
     await this.privateRoomService.getRoomById(roomId, trimmedUser);
 
-    // Automatically mark the room as read for the user viewing messages
-    try {
-      await this.privateRoomService.markRoomAsRead(roomId, trimmedUser);
-      const io = getIO();
-      if (io) {
-        io.to(`user:${trimmedUser}`).emit("private:unread:sync", { roomId, unreadCount: 0 });
-      }
-    } catch {
-      // ignore
-    }
+    // Automatically mark the room as read for the user in the background
+    this.privateRoomService.markRoomAsRead(roomId, trimmedUser).catch(() => {});
 
     return await this.repository.findByRoom(roomId, limit, cursor);
   }
@@ -118,19 +100,9 @@ export class PrivateMessageService {
     // Create message with server-derived admin sender identity
     const message = await this.repository.create(roomId, "admin", content, replyToId);
 
-    // Update admin's read state to current time so own message is marked read
-    try {
-      await this.privateRoomService.markRoomAsRead(roomId, "admin");
-    } catch {
-      // ignore
-    }
-
-    // Update room updatedAt timestamp to reflect recent activity
-    try {
-      await PrivateRoomModel.findByIdAndUpdate(roomId, { updatedAt: new Date() });
-    } catch {
-      // Non-critical background update error ignored
-    }
+    // Non-blocking updates: read state and room activity timestamp
+    this.privateRoomService.markRoomAsRead(roomId, "admin").catch(() => {});
+    PrivateRoomModel.findByIdAndUpdate(roomId, { updatedAt: new Date() }).catch(() => {});
 
     // Emit real-time message and unread increment to anonymous recipient
     const anonymousParticipant = room.participants.find((p) => p !== "admin");
@@ -158,16 +130,8 @@ export class PrivateMessageService {
     // Verify room exists and admin is an authorized participant
     await this.privateRoomService.getAdminRoomById(roomId);
 
-    // Automatically mark room as read for admin viewing messages
-    try {
-      await this.privateRoomService.markRoomAsRead(roomId, "admin");
-      const io = getIO();
-      if (io) {
-        io.to("user:admin").emit("private:unread:sync", { roomId, unreadCount: 0 });
-      }
-    } catch {
-      // ignore
-    }
+    // Automatically mark room as read for admin in the background
+    this.privateRoomService.markRoomAsRead(roomId, "admin").catch(() => {});
 
     return await this.repository.findByRoom(roomId, limit, cursor);
   }

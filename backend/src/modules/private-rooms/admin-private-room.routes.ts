@@ -7,6 +7,7 @@ import {
 } from "./admin-private-room.validation.js";
 import {
   getAdminPrivateRooms,
+  getAdminPrivateUnread,
   getAdminPrivateRoomById,
   getAdminPrivateRoomMessages,
   sendAdminPrivateRoomMessage,
@@ -18,6 +19,7 @@ const router = Router();
 router.use(requireAdminAuth);
 
 router.get("/", validateAdminGetQuery, getAdminPrivateRooms);
+router.get("/unread", getAdminPrivateUnread);
 router.get("/:roomId", validateRoomId, getAdminPrivateRoomById);
 router.patch("/:roomId/label", validateRoomId, setAdminRoomLabel);
 router.get("/:roomId/messages", validateRoomId, validateAdminGetQuery, getAdminPrivateRoomMessages);

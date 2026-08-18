@@ -10,6 +10,4 @@ const communityReadStateSchema = new Schema<ICommunityReadState>({
   lastReadAt: { type: Date, default: () => new Date() }
 });
 
-communityReadStateSchema.index({ clientId: 1 });
-
 export const CommunityReadStateModel = model<ICommunityReadState>("CommunityReadState", communityReadStateSchema);

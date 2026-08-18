@@ -179,29 +179,44 @@ export class PrivateRoomService {
       });
     }
 
-    await Promise.all(
-      rooms.map(async (room) => {
-        const lastReadAt = readStateMap.get(room.id);
-        const filter: Record<string, unknown> = {
-          roomId: new Types.ObjectId(room.id),
-          senderId: { $ne: "admin" }
-        };
-        if (lastReadAt) {
-          filter.createdAt = { $gt: lastReadAt };
-        }
-        room.unreadCount = await PrivateMessageModel.countDocuments(filter);
-        room.displayParticipants = [
-          this.formatAnonymousDisplayId(room.participants[0]),
-          this.formatAnonymousDisplayId(room.participants[1])
-        ];
-        const anonPart = room.participants.find((p) => p !== "admin");
-        if (anonPart) {
-          room.anonymousDisplayId = this.formatAnonymousDisplayId(anonPart);
-        }
-        room.adminLabel = labelMap.get(room.id);
-        room.lastMessage = lastMessageMap.get(room.id) || null;
-      })
-    );
+    const matchConditions = rooms.map((room) => {
+      const lastReadAt = readStateMap.get(room.id);
+      const cond: Record<string, unknown> = {
+        roomId: new Types.ObjectId(room.id),
+        senderId: { $ne: "admin" }
+      };
+      if (lastReadAt) {
+        cond.createdAt = { $gt: lastReadAt };
+      }
+      return cond;
+    });
+
+    const unreadAgg =
+      matchConditions.length > 0
+        ? await PrivateMessageModel.aggregate([
+            { $match: { $or: matchConditions } },
+            { $group: { _id: "$roomId", count: { $sum: 1 } } }
+          ])
+        : [];
+
+    const unreadCountMap = new Map<string, number>();
+    for (const u of unreadAgg) {
+      unreadCountMap.set(u._id.toString(), u.count);
+    }
+
+    for (const room of rooms) {
+      room.unreadCount = unreadCountMap.get(room.id) || 0;
+      room.displayParticipants = [
+        this.formatAnonymousDisplayId(room.participants[0]),
+        this.formatAnonymousDisplayId(room.participants[1])
+      ];
+      const anonPart = room.participants.find((p) => p !== "admin");
+      if (anonPart) {
+        room.anonymousDisplayId = this.formatAnonymousDisplayId(anonPart);
+      }
+      room.adminLabel = labelMap.get(room.id);
+      room.lastMessage = lastMessageMap.get(room.id) || null;
+    }
 
     return rooms;
   }
@@ -314,20 +329,35 @@ export class PrivateRoomService {
       });
     }
 
-    await Promise.all(
-      rooms.map(async (room) => {
-        const lastReadAt = readStateMap.get(room.id);
-        const filter: Record<string, unknown> = {
-          roomId: new Types.ObjectId(room.id),
-          senderId: { $ne: trimmedCurrent }
-        };
-        if (lastReadAt) {
-          filter.createdAt = { $gt: lastReadAt };
-        }
-        room.unreadCount = await PrivateMessageModel.countDocuments(filter);
-        room.lastMessage = lastMessageMap.get(room.id) || null;
-      })
-    );
+    const matchConditions = rooms.map((room) => {
+      const lastReadAt = readStateMap.get(room.id);
+      const cond: Record<string, unknown> = {
+        roomId: new Types.ObjectId(room.id),
+        senderId: { $ne: trimmedCurrent }
+      };
+      if (lastReadAt) {
+        cond.createdAt = { $gt: lastReadAt };
+      }
+      return cond;
+    });
+
+    const unreadAgg =
+      matchConditions.length > 0
+        ? await PrivateMessageModel.aggregate([
+            { $match: { $or: matchConditions } },
+            { $group: { _id: "$roomId", count: { $sum: 1 } } }
+          ])
+        : [];
+
+    const unreadCountMap = new Map<string, number>();
+    for (const u of unreadAgg) {
+      unreadCountMap.set(u._id.toString(), u.count);
+    }
+
+    for (const room of rooms) {
+      room.unreadCount = unreadCountMap.get(room.id) || 0;
+      room.lastMessage = lastMessageMap.get(room.id) || null;
+    }
 
     return rooms;
   }
@@ -386,10 +416,8 @@ export class PrivateRoomService {
       throw new AppError(400, "Missing anonymous client ID");
     }
 
-    if (trimmedCurrent === "admin") {
-      await this.getAdminRoomById(roomId);
-    } else {
-      await this.getRoomById(roomId, trimmedCurrent);
+    if (!Types.ObjectId.isValid(roomId)) {
+      throw new AppError(400, "Invalid room ID");
     }
 
     await PrivateRoomReadStateModel.findOneAndUpdate(
@@ -398,24 +426,84 @@ export class PrivateRoomService {
       { upsert: true }
     );
 
-    // Emit real-time unread sync to all sockets of this user
-    try {
-      const io = getIO();
-      if (io) {
-        if (trimmedCurrent === "admin") {
-          io.to("user:admin").emit("private:unread:sync", { roomId, unreadCount: 0 });
-        } else {
-          const unreadData = await this.getUserUnreadCounts(trimmedCurrent);
-          io.to(`user:${trimmedCurrent}`).emit("private:unread:sync", {
-            roomId,
-            unreadCount: 0,
-            totalUnreadCount: unreadData.totalUnreadCount
-          });
-        }
+    // Emit real-time unread sync to all sockets of this user in the background
+    const io = getIO();
+    if (io) {
+      if (trimmedCurrent === "admin") {
+        this.getAdminUnreadCounts()
+          .then((unreadData) => {
+            io.to("user:admin").emit("private:unread:sync", {
+              roomId,
+              unreadCount: 0,
+              totalUnreadCount: unreadData.totalUnreadCount,
+              rooms: unreadData.rooms
+            });
+          })
+          .catch(() => {});
+      } else {
+        this.getUserUnreadCounts(trimmedCurrent)
+          .then((unreadData) => {
+            io.to(`user:${trimmedCurrent}`).emit("private:unread:sync", {
+              roomId,
+              unreadCount: 0,
+              totalUnreadCount: unreadData.totalUnreadCount
+            });
+          })
+          .catch(() => {});
       }
-    } catch {
-      // ignore
     }
+  }
+
+  async getAdminUnreadCounts(): Promise<{
+    totalUnreadCount: number;
+    rooms: Record<string, number>;
+  }> {
+    const rooms = await this.repository.findByParticipant("admin", 500);
+    if (rooms.length === 0) {
+      return { totalUnreadCount: 0, rooms: {} };
+    }
+
+    const roomObjectIds = rooms.map((r) => new Types.ObjectId(r.id));
+    const readStates = await PrivateRoomReadStateModel.find({
+      clientId: "admin",
+      roomId: { $in: roomObjectIds }
+    }).lean();
+
+    const readStateMap = new Map<string, Date>();
+    for (const rs of readStates) {
+      readStateMap.set(rs.roomId.toString(), rs.lastReadAt);
+    }
+
+    const matchConditions = rooms.map((room) => {
+      const lastReadAt = readStateMap.get(room.id);
+      const cond: Record<string, unknown> = {
+        roomId: new Types.ObjectId(room.id),
+        senderId: { $ne: "admin" }
+      };
+      if (lastReadAt) {
+        cond.createdAt = { $gt: lastReadAt };
+      }
+      return cond;
+    });
+
+    const unreadAgg =
+      matchConditions.length > 0
+        ? await PrivateMessageModel.aggregate([
+            { $match: { $or: matchConditions } },
+            { $group: { _id: "$roomId", count: { $sum: 1 } } }
+          ])
+        : [];
+
+    const roomCounts: Record<string, number> = {};
+    let totalUnreadCount = 0;
+
+    for (const u of unreadAgg) {
+      const count = u.count || 0;
+      roomCounts[u._id.toString()] = count;
+      totalUnreadCount += count;
+    }
+
+    return { totalUnreadCount, rooms: roomCounts };
   }
 
   async getUserUnreadCounts(
@@ -442,24 +530,34 @@ export class PrivateRoomService {
       readStateMap.set(rs.roomId.toString(), rs.lastReadAt);
     }
 
+    const matchConditions = rooms.map((room) => {
+      const lastReadAt = readStateMap.get(room.id);
+      const cond: Record<string, unknown> = {
+        roomId: new Types.ObjectId(room.id),
+        senderId: { $ne: trimmedCurrent }
+      };
+      if (lastReadAt) {
+        cond.createdAt = { $gt: lastReadAt };
+      }
+      return cond;
+    });
+
+    const unreadAgg =
+      matchConditions.length > 0
+        ? await PrivateMessageModel.aggregate([
+            { $match: { $or: matchConditions } },
+            { $group: { _id: "$roomId", count: { $sum: 1 } } }
+          ])
+        : [];
+
     const roomCounts: Record<string, number> = {};
     let totalUnreadCount = 0;
 
-    await Promise.all(
-      rooms.map(async (room) => {
-        const lastReadAt = readStateMap.get(room.id);
-        const filter: Record<string, unknown> = {
-          roomId: new Types.ObjectId(room.id),
-          senderId: { $ne: trimmedCurrent }
-        };
-        if (lastReadAt) {
-          filter.createdAt = { $gt: lastReadAt };
-        }
-        const count = await PrivateMessageModel.countDocuments(filter);
-        roomCounts[room.id] = count;
-        totalUnreadCount += count;
-      })
-    );
+    for (const u of unreadAgg) {
+      const count = u.count || 0;
+      roomCounts[u._id.toString()] = count;
+      totalUnreadCount += count;
+    }
 
     return { totalUnreadCount, rooms: roomCounts };
   }
