@@ -1,6 +1,7 @@
 import { BroadcastModel } from "./broadcast.model.js";
 import type {
   IBroadcastDoc,
+  BroadcastType,
   BroadcastCategory,
   BroadcastPriority,
   BroadcastAudience,
@@ -11,6 +12,9 @@ export interface CreateBroadcastRepoParams {
   adminId: string;
   title?: string;
   content: string;
+  broadcastType?: BroadcastType;
+  posterImageUrl?: string;
+  posterMetadata?: Record<string, unknown>;
   category?: BroadcastCategory;
   priority?: BroadcastPriority;
   audience?: BroadcastAudience;
@@ -24,6 +28,9 @@ export class BroadcastRepository {
       title: params.title || "",
       content: params.content,
       type: "SYSTEM_BROADCAST",
+      broadcastType: params.broadcastType || "TEXT",
+      posterImageUrl: params.posterImageUrl || "",
+      posterMetadata: params.posterMetadata,
       category: params.category || "COMMUNITY",
       priority: params.priority || "NORMAL",
       audience: "ALL_USERS",

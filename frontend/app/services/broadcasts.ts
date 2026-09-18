@@ -3,6 +3,7 @@ import { getAnonymousClientId } from "../utils/anonymous-id";
 import { adminFetch } from "./admin-auth";
 
 export type BroadcastDeliveryMode = "ANNOUNCEMENT" | "DIRECT_MESSAGE";
+export type BroadcastType = "TEXT" | "POSTER";
 
 export type BroadcastCategory =
   | "FEATURE_UPDATE"
@@ -21,6 +22,9 @@ export interface IPublicBroadcast {
   title?: string;
   content: string;
   type: "SYSTEM_BROADCAST";
+  broadcastType?: BroadcastType;
+  posterImageUrl?: string;
+  posterMetadata?: Record<string, unknown>;
   category?: BroadcastCategory;
   priority?: BroadcastPriority;
   audience: "ALL_USERS";
@@ -39,6 +43,9 @@ export interface IAdminBroadcast {
   title?: string;
   content: string;
   type: "SYSTEM_BROADCAST";
+  broadcastType?: BroadcastType;
+  posterImageUrl?: string;
+  posterMetadata?: Record<string, unknown>;
   category?: BroadcastCategory;
   priority?: BroadcastPriority;
   audience: "ALL_USERS";
@@ -120,10 +127,60 @@ export async function getAdminBroadcastById(id: string): Promise<IAdminBroadcast
 export interface CreateAdminBroadcastPayload {
   title?: string;
   content: string;
+  broadcastType?: BroadcastType;
+  posterImageUrl?: string;
+  posterMetadata?: Record<string, unknown>;
   category?: BroadcastCategory;
   priority?: BroadcastPriority;
   audience?: BroadcastAudience;
   deliveryMode?: BroadcastDeliveryMode;
+}
+
+/**
+ * Upload a raw background image to Cloudinary (Admin only).
+ */
+export async function uploadBroadcastBackground(
+  imageData: string
+): Promise<{ imageUrl: string; publicId: string }> {
+  const res = await adminFetch(getApiUrl("/api/admin/broadcasts/upload-background"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ imageData }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || "Failed to upload background image to Cloudinary");
+  }
+
+  const data = await res.json();
+  return { imageUrl: data.imageUrl, publicId: data.publicId };
+}
+
+/**
+ * Upload a generated poster image to Cloudinary (Admin only).
+ */
+export async function uploadBroadcastPoster(
+  imageData: string,
+  backgroundPublicId?: string
+): Promise<{ posterImageUrl: string; publicId: string }> {
+  const res = await adminFetch(getApiUrl("/api/admin/broadcasts/upload-poster"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ imageData, backgroundPublicId }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || "Failed to upload final poster to Cloudinary");
+  }
+
+  const data = await res.json();
+  return { posterImageUrl: data.posterImageUrl, publicId: data.publicId };
 }
 
 /**
@@ -140,6 +197,9 @@ export async function createAdminBroadcast(
     body = {
       title: payloadOrContent.title?.trim() || undefined,
       content: payloadOrContent.content.trim(),
+      broadcastType: payloadOrContent.broadcastType || "TEXT",
+      posterImageUrl: payloadOrContent.posterImageUrl || undefined,
+      posterMetadata: payloadOrContent.posterMetadata,
       category: payloadOrContent.category || "COMMUNITY",
       priority: payloadOrContent.priority || "NORMAL",
       audience: "ALL_USERS",

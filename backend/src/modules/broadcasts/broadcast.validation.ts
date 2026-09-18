@@ -41,6 +41,9 @@ const createBroadcastSchema = z.object({
     .trim()
     .min(1, "Broadcast content cannot be empty.")
     .max(2000, "Broadcast content cannot exceed 2000 characters."),
+  broadcastType: z.enum(["TEXT", "POSTER"]).default("TEXT").optional(),
+  posterImageUrl: z.string().trim().optional(),
+  posterMetadata: z.record(z.unknown()).optional(),
   category: broadcastCategoryEnum.default("COMMUNITY").optional(),
   priority: broadcastPriorityEnum.default("NORMAL").optional(),
   audience: broadcastAudienceEnum.default("ALL_USERS").optional(),
@@ -60,6 +63,9 @@ export function validateCreateBroadcast(req: Request, _res: Response, next: Next
 
   req.body.title = result.data.title || "";
   req.body.content = result.data.content;
+  req.body.broadcastType = result.data.broadcastType || "TEXT";
+  req.body.posterImageUrl = result.data.posterImageUrl || "";
+  req.body.posterMetadata = result.data.posterMetadata;
   req.body.category = result.data.category || "COMMUNITY";
   req.body.priority = result.data.priority || "NORMAL";
   req.body.audience = "ALL_USERS";

@@ -12,7 +12,11 @@ const envSchema = z.object({
   COMMUNITY_MESSAGE_MAX_LENGTH: z.coerce.number().int().min(10).max(2000).default(500),
   COMMUNITY_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().min(1000).default(10000),
   COMMUNITY_RATE_LIMIT_MAX_MESSAGES: z.coerce.number().int().min(1).max(50).default(5),
-  JWT_SECRET: z.string().min(1).default("reviewer-bucket-admin-jwt-secret-key-2026")
+  JWT_SECRET: z.string().min(1).default("reviewer-bucket-admin-jwt-secret-key-2026"),
+  CLOUDINARY_CLOUD_NAME: z.string().optional().default("reviewerbucket"),
+  CLOUDINARY_API_KEY: z.string().optional().default("176361553288176"),
+  CLOUDINARY_API_SECRET: z.string().optional().default("Bxsu1esrcIai0g7ODWvjDXEQino"),
+  CLOUDINARY_URL: z.string().optional()
 });
 
 const result = envSchema.safeParse(process.env);

@@ -387,7 +387,14 @@ export default function ConversationList({
 
             <div className="flex items-center justify-between gap-2 pl-9.5">
               <p className="text-xs text-muted font-normal truncate leading-relaxed">
-                {latestBroadcast?.content || "Official announcement channel"}
+                {latestBroadcast?.broadcastType === "POSTER" || latestBroadcast?.posterImageUrl ? (
+                  <>
+                    <span className="font-semibold text-foreground/85">🖼️ Poster: </span>
+                    {latestBroadcast.title || latestBroadcast.content}
+                  </>
+                ) : (
+                  latestBroadcast?.content || "Official announcement channel"
+                )}
               </p>
               {broadcastUnread > 0 && (
                 <span className="flex-shrink-0 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-white shadow-2xs">

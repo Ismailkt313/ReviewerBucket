@@ -29,6 +29,22 @@ const broadcastSchema = new Schema<IBroadcastDoc>(
       default: "SYSTEM_BROADCAST",
       required: true
     },
+    broadcastType: {
+      type: String,
+      enum: ["TEXT", "POSTER"],
+      default: "TEXT",
+      required: true
+    },
+    posterImageUrl: {
+      type: String,
+      required: false,
+      default: "",
+      trim: true
+    },
+    posterMetadata: {
+      type: Schema.Types.Mixed,
+      required: false
+    },
     category: {
       type: String,
       enum: [

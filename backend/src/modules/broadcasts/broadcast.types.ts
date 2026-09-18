@@ -3,6 +3,7 @@ import { Document, Types } from "mongoose";
 export type BroadcastMessageType = "SYSTEM_BROADCAST";
 export type BroadcastAudience = "ALL_USERS";
 export type BroadcastDeliveryMode = "ANNOUNCEMENT" | "DIRECT_MESSAGE";
+export type BroadcastType = "TEXT" | "POSTER";
 
 export type BroadcastCategory =
   | "FEATURE_UPDATE"
@@ -19,6 +20,9 @@ export interface IBroadcastDoc extends Document {
   title: string;
   content: string;
   type: BroadcastMessageType;
+  broadcastType?: BroadcastType;
+  posterImageUrl?: string;
+  posterMetadata?: Record<string, unknown>;
   category: BroadcastCategory;
   priority: BroadcastPriority;
   audience: BroadcastAudience;
@@ -34,6 +38,9 @@ export interface IBroadcast {
   title: string;
   content: string;
   type: BroadcastMessageType;
+  broadcastType?: BroadcastType;
+  posterImageUrl?: string;
+  posterMetadata?: Record<string, unknown>;
   category: BroadcastCategory;
   priority: BroadcastPriority;
   audience: BroadcastAudience;
@@ -48,6 +55,9 @@ export interface IPublicBroadcast {
   title: string;
   content: string;
   type: BroadcastMessageType;
+  broadcastType?: BroadcastType;
+  posterImageUrl?: string;
+  posterMetadata?: Record<string, unknown>;
   category: BroadcastCategory;
   priority: BroadcastPriority;
   audience: BroadcastAudience;
@@ -61,6 +71,9 @@ export interface IPublicBroadcast {
 export interface CreateBroadcastDTO {
   title?: string;
   content: string;
+  broadcastType?: BroadcastType;
+  posterImageUrl?: string;
+  posterMetadata?: Record<string, unknown>;
   category?: BroadcastCategory;
   priority?: BroadcastPriority;
   audience?: BroadcastAudience;

@@ -16,12 +16,17 @@ import adminAuthRoutes from "./modules/admin-auth/admin-auth.routes.js";
 import adminPrivateRoomRoutes from "./modules/private-rooms/admin-private-room.routes.js";
 import adminBroadcastRoutes from "./modules/broadcasts/admin-broadcast.routes.js";
 import broadcastRoutes from "./modules/broadcasts/broadcast.routes.js";
+import path from "node:path";
 
 const app = express();
+const uploadsPath = path.resolve(process.cwd(), "uploads");
 
-app.use(helmet());
-app.use(cors(corsOptions));
-app.use(express.json({ limit: "10kb" }));
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+app.use(cors(corsOptions)); 
+app.use(express.json({ limit: "10mb" }));
+app.use("/uploads", express.static(uploadsPath));
 
 app.get("/api/health", (_req, res) => {
   res.status(200).json({
@@ -46,4 +51,4 @@ app.use("/api/private-contacts", privateContactRoutes);
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);
 
-export default app;
+export default app; 

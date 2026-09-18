@@ -11,7 +11,8 @@ import {
   Clock,
   RefreshCw,
   Pin,
-  ArrowDown
+  ArrowDown,
+  X
 } from "lucide-react";
 import {
   IPublicBroadcast,
@@ -225,12 +226,14 @@ function AnnouncementSkeleton(): JSX.Element {
 
 interface AnnouncementItemProps {
   broadcast: IPublicBroadcast;
+  onOpenPoster?: (imageUrl: string) => void;
 }
 
-function AnnouncementItem({ broadcast }: AnnouncementItemProps): JSX.Element {
+function AnnouncementItem({ broadcast, onOpenPoster }: AnnouncementItemProps): JSX.Element {
   const categoryLabel = getCategoryLabel(broadcast.category);
   const priorityLabel = getPriorityLabel(broadcast.priority);
   const priorityStyles = getPriorityStyles(broadcast.priority);
+  const isPoster = broadcast.broadcastType === "POSTER" || !!broadcast.posterImageUrl;
 
   return (
     <article
@@ -243,6 +246,11 @@ function AnnouncementItem({ broadcast }: AnnouncementItemProps): JSX.Element {
           <span className="text-[11px] font-bold uppercase tracking-wider text-secondary">
             {categoryLabel}
           </span>
+          {isPoster && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full border text-[9px] font-bold uppercase tracking-wider bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20">
+              Poster
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
@@ -261,25 +269,50 @@ function AnnouncementItem({ broadcast }: AnnouncementItemProps): JSX.Element {
         </div>
       </div>
 
-      {/* Announcement Title (if provided) */}
-      {broadcast.title && (
-        <h3 className="text-base sm:text-lg font-bold text-foreground tracking-tight leading-snug break-words">
-          {broadcast.title}
-        </h3>
+      {isPoster && broadcast.posterImageUrl ? (
+        /* ─── Poster Announcement Display ─── */
+        <div className="space-y-3 pt-0.5">
+          <div
+            className="relative rounded-2xl overflow-hidden border border-border bg-neutral-950 shadow-sm group/poster cursor-pointer"
+            onClick={() => onOpenPoster?.(broadcast.posterImageUrl!)}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={broadcast.posterImageUrl}
+              alt={broadcast.title ? `${broadcast.title} - ${broadcast.content}` : broadcast.content}
+              className="w-full h-auto object-cover max-h-[520px] transition-transform duration-200 group-hover/poster:scale-[1.01]"
+              loading="lazy"
+            />
+            {/* Subtle Zoom Badge */}
+            <div className="absolute top-3 right-3 p-1.5 rounded-xl bg-black/60 hover:bg-black/80 text-white backdrop-blur-md transition-opacity opacity-0 group-hover/poster:opacity-100 shadow-md">
+              <span className="text-[10px] font-semibold px-1">Click to expand</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* ─── Standard Text Announcement Display ─── */
+        <>
+          {/* Announcement Title (if provided) */}
+          {broadcast.title && (
+            <h3 className="text-base sm:text-lg font-bold text-foreground tracking-tight leading-snug break-words">
+              {broadcast.title}
+            </h3>
+          )}
+
+          {/* Semantic Priority Visual Line */}
+          <div
+            className={`h-[2px] w-full rounded-full transition-colors ${priorityStyles.line}`}
+            aria-hidden="true"
+          />
+
+          {/* Announcement Body Content */}
+          <div className="pt-0.5">
+            <p className="text-[13px] sm:text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap break-words [word-break:break-word] font-normal">
+              {broadcast.content}
+            </p>
+          </div>
+        </>
       )}
-
-      {/* Semantic Priority Visual Line */}
-      <div
-        className={`h-[2px] w-full rounded-full transition-colors ${priorityStyles.line}`}
-        aria-hidden="true"
-      />
-
-      {/* Announcement Body Content */}
-      <div className="pt-0.5">
-        <p className="text-[13px] sm:text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap break-words [word-break:break-word] font-normal">
-          {broadcast.content}
-        </p>
-      </div>
 
       {/* Timestamp */}
       <div className="flex items-center justify-between pt-1 text-[11px] text-muted font-normal tabular-nums">
@@ -309,6 +342,7 @@ export default function BroadcastConversationView({
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isNavigatingToDev, setIsNavigatingToDev] = useState(false);
   const [hasNewAnnouncements, setHasNewAnnouncements] = useState(false);
+  const [lightboxImageUrl, setLightboxImageUrl] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -595,6 +629,7 @@ export default function BroadcastConversationView({
                         <AnnouncementItem
                           key={broadcastKey}
                           broadcast={broadcast}
+                          onOpenPoster={(url) => setLightboxImageUrl(url)}
                         />
                       );
                     })}
@@ -648,6 +683,30 @@ export default function BroadcastConversationView({
         isOpen={isInfoModalOpen}
         onClose={() => setIsInfoModalOpen(false)}
       />
+
+      {/* Lightbox Modal for Poster Zoom */}
+      {lightboxImageUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-150"
+          onClick={() => setLightboxImageUrl(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setLightboxImageUrl(null)}
+            className="absolute top-4 right-4 p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+            aria-label="Close Preview"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightboxImageUrl}
+            alt="Full size announcement poster"
+            className="max-w-[95vw] max-h-[90vh] object-contain rounded-2xl shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

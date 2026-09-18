@@ -6,6 +6,7 @@ import type {
   IBroadcast,
   IPublicBroadcast,
   IBroadcastDoc,
+  BroadcastType,
   BroadcastCategory,
   BroadcastPriority,
   BroadcastAudience,
@@ -31,6 +32,9 @@ export interface CreateBroadcastServiceParams {
   adminId: string;
   title?: string;
   content: string;
+  broadcastType?: BroadcastType;
+  posterImageUrl?: string;
+  posterMetadata?: Record<string, unknown>;
   category?: BroadcastCategory;
   priority?: BroadcastPriority;
   audience?: BroadcastAudience;
@@ -49,6 +53,9 @@ export class BroadcastService {
       title: doc.title || "",
       content: doc.content,
       type: doc.type || "SYSTEM_BROADCAST",
+      broadcastType: doc.broadcastType || "TEXT",
+      posterImageUrl: doc.posterImageUrl || "",
+      posterMetadata: doc.posterMetadata,
       category: doc.category || "COMMUNITY",
       priority: doc.priority || "NORMAL",
       audience: doc.audience || "ALL_USERS",
@@ -65,6 +72,9 @@ export class BroadcastService {
       title: doc.title || "",
       content: doc.content,
       type: doc.type || "SYSTEM_BROADCAST",
+      broadcastType: doc.broadcastType || "TEXT",
+      posterImageUrl: doc.posterImageUrl || "",
+      posterMetadata: doc.posterMetadata,
       category: doc.category || "COMMUNITY",
       priority: doc.priority || "NORMAL",
       audience: doc.audience || "ALL_USERS",
@@ -88,6 +98,9 @@ export class BroadcastService {
     let adminId: string;
     let title: string | undefined;
     let content: string;
+    let broadcastType: BroadcastType | undefined;
+    let posterImageUrl: string | undefined;
+    let posterMetadata: Record<string, unknown> | undefined;
     let category: BroadcastCategory | undefined;
     let priority: BroadcastPriority | undefined;
     let audience: BroadcastAudience | undefined;
@@ -97,6 +110,9 @@ export class BroadcastService {
       adminId = adminIdOrParams.adminId;
       title = adminIdOrParams.title;
       content = adminIdOrParams.content;
+      broadcastType = adminIdOrParams.broadcastType;
+      posterImageUrl = adminIdOrParams.posterImageUrl;
+      posterMetadata = adminIdOrParams.posterMetadata;
       category = adminIdOrParams.category;
       priority = adminIdOrParams.priority;
       audience = adminIdOrParams.audience;
@@ -151,12 +167,17 @@ export class BroadcastService {
 
     const trimmedAdminId = (adminId || "admin").trim();
     const resolvedDeliveryMode: BroadcastDeliveryMode = deliveryMode || "ANNOUNCEMENT";
+    const resolvedBroadcastType: BroadcastType = broadcastType === "POSTER" ? "POSTER" : "TEXT";
+    const resolvedPosterImageUrl = (posterImageUrl || "").trim();
 
     // 6. Persist broadcast record BEFORE socket emission
     const doc = await this.repository.create({
       adminId: trimmedAdminId,
       title: trimmedTitle,
       content: trimmedContent,
+      broadcastType: resolvedBroadcastType,
+      posterImageUrl: resolvedPosterImageUrl,
+      posterMetadata: posterMetadata,
       category: resolvedCategory,
       priority: resolvedPriority,
       audience: "ALL_USERS",

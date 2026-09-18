@@ -567,4 +567,108 @@ describe("Backend: Admin Broadcast Messaging & Domain Tests (Module 1)", () => {
     const countReset = await broadcastService.getUserUnreadCount(testUser);
     assert.equal(countReset, 0);
   });
+
+  // ─── 9. Image-Based Broadcast Posters Tests ──────────────────────────────
+
+  test("26. Admin can create a poster broadcast with posterImageUrl and posterMetadata", async () => {
+    const posterPayload = {
+      adminId: "admin",
+      title: "Reviewer Bucket is Back",
+      content: "Thank you for your patience and continued support.",
+      broadcastType: "POSTER" as const,
+      posterImageUrl: "/uploads/broadcasts/poster-test-123.webp",
+      posterMetadata: {
+        cta: "Explore Reviewer Bucket",
+        textPosition: "center",
+        textAlign: "center",
+        aspectRatio: "1:1"
+      },
+      category: "COMMUNITY" as const,
+      priority: "IMPORTANT" as const,
+      audience: "ALL_USERS" as const,
+      deliveryMode: "ANNOUNCEMENT" as const
+    };
+
+    const broadcast = await broadcastService.createBroadcast(posterPayload);
+    assert.ok(broadcast.id);
+    assert.equal(broadcast.broadcastType, "POSTER");
+    assert.equal(broadcast.posterImageUrl, "/uploads/broadcasts/poster-test-123.webp");
+    assert.ok(broadcast.posterMetadata);
+    assert.equal((broadcast.posterMetadata as Record<string, unknown>).cta, "Explore Reviewer Bucket");
+
+    // Public list returns poster fields
+    const publicList = await broadcastService.getUserBroadcasts(10);
+    assert.equal(publicList.length, 1);
+    assert.equal(publicList[0].broadcastType, "POSTER");
+    assert.equal(publicList[0].posterImageUrl, "/uploads/broadcasts/poster-test-123.webp");
+    assert.ok(publicList[0].posterMetadata);
+  });
+
+  test("27. Standard broadcasts default to broadcastType TEXT and empty posterImageUrl", async () => {
+    const textBroadcast = await broadcastService.createBroadcast({
+      adminId: "admin",
+      title: "Standard Text Update",
+      content: "This is a text-only broadcast."
+    });
+
+    assert.equal(textBroadcast.broadcastType, "TEXT");
+    assert.equal(textBroadcast.posterImageUrl, "");
+
+    const publicList = await broadcastService.getUserBroadcasts(10);
+    assert.equal(publicList[0].broadcastType, "TEXT");
+    assert.equal(publicList[0].posterImageUrl, "");
+  });
+
+  test("28. Poster image upload controller successfully decodes and saves poster to Cloudinary", async () => {
+    const { v2: cloudinary } = await import("cloudinary");
+    const originalUpload = cloudinary.uploader.upload;
+
+    // Mock Cloudinary upload response
+    cloudinary.uploader.upload = (async (_fileData: string, _options?: Record<string, unknown>) => {
+      return {
+        secure_url: "https://res.cloudinary.com/reviewerbucket/image/upload/v1726670000/reviewer-bucket/broadcasts/posters/poster-123.webp",
+        public_id: "reviewer-bucket/broadcasts/posters/poster-123",
+        format: "webp",
+        width: 1080,
+        height: 1080,
+      } as any;
+    }) as any;
+
+    try {
+      const { uploadBroadcastPosterImage } = await import("./broadcast.controller.js");
+      let statusCode = 0;
+      let jsonResponse: Record<string, unknown> | null = null;
+
+      // Small 1x1 transparent png in base64
+      const sampleBase64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+      const req = {
+        body: {
+          imageData: sampleBase64
+        }
+      } as Request;
+
+      const res = {
+        status(code: number) {
+          statusCode = code;
+          return this;
+        },
+        json(data: Record<string, unknown>) {
+          jsonResponse = data;
+          return this;
+        }
+      } as unknown as Response;
+
+      await uploadBroadcastPosterImage(req, res, () => {});
+
+      assert.equal(statusCode, 201);
+      assert.ok(jsonResponse !== null);
+      const resultObj = jsonResponse as unknown as Record<string, unknown>;
+      assert.equal(resultObj.success, true);
+      assert.match(resultObj.posterImageUrl as string, /^https:\/\/res\.cloudinary\.com\//);
+      assert.equal(resultObj.publicId, "reviewer-bucket/broadcasts/posters/poster-123");
+    } finally {
+      cloudinary.uploader.upload = originalUpload;
+    }
+  });
 });
