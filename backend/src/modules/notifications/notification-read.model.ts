@@ -9,7 +9,7 @@ export interface INotificationRead extends Document {
 const notificationReadSchema = new Schema<INotificationRead>({
   notificationId: { type: Schema.Types.ObjectId, ref: "Notification", required: true },
   clientId: { type: String, required: true },
-  createdAt: { type: Date, default: Date.now, expires: 7800 } // TTL: 130 minutes (7800 seconds)
+  createdAt: { type: Date, default: Date.now, expires: 3888000 } // TTL: 45 days (3,888,000 seconds)
 });
 
 // Compound index for fast lookup and uniqueness

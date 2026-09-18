@@ -9,7 +9,7 @@ const notificationSchema = new Schema<INotificationDoc>({
   reviewerUpdateId: { type: String },
   reviewerId: { type: String },  
   reviewerSlug: { type: String },
-  createdAt: { type: Date, default: Date.now, expires: 172800 } // TTL: 2 days (172800 seconds)
+  createdAt: { type: Date, default: Date.now, expires: 3888000 } // TTL: 45 days (3,888,000 seconds)
 });
 
 notificationSchema.index({ createdAt: -1 });
