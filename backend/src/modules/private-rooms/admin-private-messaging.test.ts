@@ -124,11 +124,14 @@ describe("Backend Module 3: Admin Private Messaging Tests", () => {
     assert.equal(req.admin.role, "ADMIN");
   });
 
-  test("10. Valid ADMIN JWT can list developer rooms", async () => {
-    const rooms = await privateRoomService.getAdminDeveloperRooms();
-    assert.ok(Array.isArray(rooms));
-    assert.ok(rooms.length >= 2);
-    const hasRoomA = rooms.some((r) => r.participants.includes(userA));
+  test("10. Valid ADMIN JWT can list developer rooms with pagination metadata", async () => {
+    const result = await privateRoomService.getAdminDeveloperRooms();
+    assert.ok(Array.isArray(result.rooms));
+    assert.ok(result.rooms.length >= 2);
+    assert.ok(result.pagination);
+    assert.equal(result.pagination.page, 1);
+    assert.ok(result.pagination.total >= 2);
+    const hasRoomA = result.rooms.some((r) => r.participants.includes(userA));
     assert.ok(hasRoomA);
   });
 
@@ -199,7 +202,7 @@ describe("Backend Module 3: Admin Private Messaging Tests", () => {
   // ─── Identity Representation & Nickname Safety ──────────────────────────────
 
   test("18. Admin sees user# style display identity for anonymous participant", async () => {
-    const rooms = await privateRoomService.getAdminDeveloperRooms();
+    const { rooms } = await privateRoomService.getAdminDeveloperRooms();
     const roomA = rooms.find((r) => r.participants.includes(userA));
     assert.ok(roomA);
     assert.equal(roomA?.anonymousDisplayId, `user#${userA}`);

@@ -25,8 +25,8 @@ privateRoomSchema.index({ "participants.0": 1, "participants.1": 1 }, { unique: 
 // Multikey index on participants for fast lookups of all rooms belonging to a participant
 privateRoomSchema.index({ participants: 1 });
 
-// Composite index for querying participant's rooms ordered by recent activity
-privateRoomSchema.index({ participants: 1, updatedAt: -1 });
+// Composite index for querying participant's rooms ordered by recent activity with stable secondary sort
+privateRoomSchema.index({ participants: 1, updatedAt: -1, _id: -1 });
 
 export const PrivateRoomModel = model<IPrivateRoomDoc>(
   "PrivateRoom",

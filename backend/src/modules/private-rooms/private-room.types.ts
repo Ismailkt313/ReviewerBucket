@@ -30,3 +30,18 @@ export interface IPrivateRoom {
 export interface CreatePrivateRoomDTO {
   targetUserId: string;
 }
+
+export interface IPaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasMore: boolean;
+  hasPrev: boolean;
+  hasNext: boolean;
+}
+
+export interface GetAdminDeveloperRoomsResult {
+  rooms: IPrivateRoom[];
+  pagination: IPaginationMeta;
+}

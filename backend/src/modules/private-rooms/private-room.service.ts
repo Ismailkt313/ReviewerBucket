@@ -11,7 +11,7 @@ import { PrivateRoomReadStateModel } from "./private-room-read-state.model.js";
 import { PrivateMessageModel } from "../private-messages/private-message.model.js";
 import { AdminRoomLabelModel } from "./admin-room-label.model.js";
 import { getIO } from "../../socket/socket.js";
-import type { IPrivateRoom } from "./private-room.types.js";
+import type { IPrivateRoom, GetAdminDeveloperRoomsResult } from "./private-room.types.js";
 
 export class PrivateRoomService {
   private repository = new PrivateRoomRepository();
@@ -127,12 +127,60 @@ export class PrivateRoomService {
   }
 
   async getAdminDeveloperRooms(
-    limit = 50,
-    beforeUpdatedAt?: string
-  ): Promise<IPrivateRoom[]> {
-    const rooms = await this.repository.findByParticipant("admin", limit, beforeUpdatedAt);
+    page = 1,
+    limit = 20,
+    beforeUpdatedAt?: string,
+    search?: string
+  ): Promise<GetAdminDeveloperRoomsResult> {
+    let matchingRoomIds: Types.ObjectId[] | undefined = undefined;
+
+    if (search && search.trim()) {
+      const trimmed = search.trim();
+      const labelDocs = await AdminRoomLabelModel.find({
+        label: { $regex: trimmed, $options: "i" }
+      }).select("roomId").lean();
+      const labelRoomIds = labelDocs.map((d) => d.roomId);
+
+      const userSearch = trimmed.replace(/^user#/, "");
+      const partRooms = await PrivateRoomModel.find({
+        participants: {
+          $all: ["admin"],
+          $elemMatch: { $regex: userSearch, $options: "i" }
+        }
+      }).select("_id").lean();
+      const partRoomIds = partRooms.map((r) => r._id);
+
+      const allMatching = new Set<string>();
+      labelRoomIds.forEach((id) => allMatching.add(id.toString()));
+      partRoomIds.forEach((id) => allMatching.add(id.toString()));
+
+      matchingRoomIds = Array.from(allMatching).map((id) => new Types.ObjectId(id));
+    }
+
+    const { rooms, total, totalPages, hasMore, hasPrev, hasNext } =
+      await this.repository.findByParticipantPaginated(
+        "admin",
+        page,
+        limit,
+        beforeUpdatedAt,
+        matchingRoomIds
+      );
+
+    const pagination = {
+      page: Math.max(1, page),
+      limit,
+      total,
+      totalPages,
+      hasMore,
+      hasPrev,
+      hasNext
+    };
+
     if (rooms.length === 0) {
-      return [];
+      return {
+        rooms: [],
+        pagination
+      };
     }
 
     const roomObjectIds = rooms.map((r) => new Types.ObjectId(r.id));
@@ -218,13 +266,10 @@ export class PrivateRoomService {
       room.lastMessage = lastMessageMap.get(room.id) || null;
     }
 
-    rooms.sort((a, b) => {
-      const timeA = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : new Date(a.updatedAt).getTime();
-      const timeB = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : new Date(b.updatedAt).getTime();
-      return (isNaN(timeB) ? 0 : timeB) - (isNaN(timeA) ? 0 : timeA);
-    });
-
-    return rooms;
+    return {
+      rooms,
+      pagination
+    };
   }
 
   async getAdminRoomById(roomId: string): Promise<IPrivateRoom> {
@@ -470,12 +515,12 @@ export class PrivateRoomService {
     totalUnreadCount: number;
     rooms: Record<string, number>;
   }> {
-    const rooms = await this.repository.findByParticipant("admin", 500);
+    const rooms = await PrivateRoomModel.find({ participants: "admin" }).select("_id").lean();
     if (rooms.length === 0) {
       return { totalUnreadCount: 0, rooms: {} };
     }
 
-    const roomObjectIds = rooms.map((r) => new Types.ObjectId(r.id));
+    const roomObjectIds = rooms.map((r) => r._id);
     const readStates = await PrivateRoomReadStateModel.find({
       clientId: "admin",
       roomId: { $in: roomObjectIds }
@@ -487,9 +532,9 @@ export class PrivateRoomService {
     }
 
     const matchConditions = rooms.map((room) => {
-      const lastReadAt = readStateMap.get(room.id);
+      const lastReadAt = readStateMap.get(room._id.toString());
       const cond: Record<string, unknown> = {
-        roomId: new Types.ObjectId(room.id),
+        roomId: room._id,
         senderId: { $ne: "admin" }
       };
       if (lastReadAt) {

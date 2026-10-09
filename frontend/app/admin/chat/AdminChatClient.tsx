@@ -5,7 +5,9 @@ import Link from "next/link";
 import {
   AdminPrivateRoom,
   AdminPrivateMessage,
+  AdminPrivateRoomsPagination,
   getAdminPrivateRooms,
+  getAdminPrivateRoomById,
   getAdminPrivateMessages,
   sendAdminPrivateMessage,
   setAdminRoomLabel,
@@ -30,6 +32,8 @@ import {
   Pencil,
   Check,
   Megaphone,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 export interface AdminChatClientProps {
@@ -134,6 +138,7 @@ let adminRoomsCache: AdminPrivateRoom[] | null = null;
 export default function AdminChatClient({ selectedRoomId: initialRoomId }: AdminChatClientProps) {
   // Active room state (allows soft-navigation without full page reload)
   const [activeRoomId, setActiveRoomId] = useState<string | null>(() => initialRoomId || null);
+  const [selectedRoomDetails, setSelectedRoomDetails] = useState<AdminPrivateRoom | null>(null);
 
   // Global unread sync hook
   const {
@@ -142,11 +147,34 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
     markRoomRead,
   } = useAdminPrivateUnread();
 
-  // State
+  // Pagination & List State
+  const [page, setPage] = useState<number>(1);
+  const [limit, setLimit] = useState<number>(20);
+  const [pagination, setPagination] = useState<AdminPrivateRoomsPagination>({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 1,
+    hasMore: false,
+    hasPrev: false,
+    hasNext: false,
+  });
+
   const [rooms, setRooms] = useState<AdminPrivateRoom[]>(() => adminRoomsCache || []);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isRoomsLoading, setIsRoomsLoading] = useState<boolean>(!adminRoomsCache);
+  const [isPageChanging, setIsPageChanging] = useState<boolean>(false);
   const [roomsError, setRoomsError] = useState<string | null>(null);
+
+  // Debounce search query to avoid excessive API requests
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const totalUnreadCount = useMemo(() => {
     if (activeRoomId) {
@@ -158,7 +186,23 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
 
   const activeRoom = useMemo(() => {
     if (!activeRoomId) return null;
-    return rooms.find((r) => r.id === activeRoomId) || null;
+    const inList = rooms.find((r) => r.id === activeRoomId);
+    if (inList) return inList;
+    return selectedRoomDetails;
+  }, [activeRoomId, rooms, selectedRoomDetails]);
+
+  // Fetch active room details if not in current page's list
+  useEffect(() => {
+    if (!activeRoomId) {
+      setSelectedRoomDetails(null);
+      return;
+    }
+    const inList = rooms.find((r) => r.id === activeRoomId);
+    if (!inList) {
+      getAdminPrivateRoomById(activeRoomId)
+        .then((room) => setSelectedRoomDetails(room))
+        .catch(() => {});
+    }
   }, [activeRoomId, rooms]);
   const [messages, setMessages] = useState<AdminPrivateMessage[]>(() => {
     if (initialRoomId && adminMessagesCache.has(initialRoomId)) {
@@ -329,48 +373,89 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
     touchStartRef.current = null;
   }, [swipingId, swipeOffset, handleInitiateReply]);
 
-  // 1. Fetch developer rooms list (cache-first background revalidation)
-  const fetchRooms = useCallback(async () => {
-    if (!adminRoomsCache) {
-      setIsRoomsLoading(true);
-    }
-    setRoomsError(null);
-    try {
-      const data = await getAdminPrivateRooms();
-      const normalized = data.map((r) => (r.id === activeRoomId ? { ...r, unreadCount: 0 } : r));
-      adminRoomsCache = normalized;
-      setRooms(normalized);
-    } catch (err: unknown) {
-      if (!adminRoomsCache) {
-        setRoomsError(err instanceof Error ? err.message : "Failed to load conversations.");
+  // 1. Fetch developer rooms list (cache-first background revalidation with server-side pagination)
+  const fetchRooms = useCallback(
+    async (
+      targetPage = page,
+      targetLimit = limit,
+      targetSearch = debouncedSearch,
+      isInitial = false
+    ) => {
+      if (isInitial && !adminRoomsCache) {
+        setIsRoomsLoading(true);
+      } else {
+        setIsPageChanging(true);
       }
-    } finally {
-      setIsRoomsLoading(false);
-    }
-  }, [activeRoomId]);
+      setRoomsError(null);
+
+      try {
+        const res = await getAdminPrivateRooms(targetPage, targetLimit, undefined, targetSearch);
+        const normalized = res.rooms.map((r) => (r.id === activeRoomId ? { ...r, unreadCount: 0 } : r));
+        adminRoomsCache = normalized;
+        setRooms(normalized);
+        setPagination(res.pagination);
+      } catch (err: unknown) {
+        if (!adminRoomsCache) {
+          setRoomsError(err instanceof Error ? err.message : "Failed to load conversations.");
+        }
+      } finally {
+        setIsRoomsLoading(false);
+        setIsPageChanging(false);
+      }
+    },
+    [activeRoomId, page, limit, debouncedSearch]
+  );
 
   useEffect(() => {
     let isMounted = true;
-    getAdminPrivateRooms()
-      .then((data) => {
+    if (!adminRoomsCache) {
+      setIsRoomsLoading(true);
+    } else {
+      setIsPageChanging(true);
+    }
+    setRoomsError(null);
+
+    getAdminPrivateRooms(page, limit, undefined, debouncedSearch)
+      .then((res) => {
         if (!isMounted) return;
-        const normalized = data.map((r) => (r.id === activeRoomId ? { ...r, unreadCount: 0 } : r));
+        const normalized = res.rooms.map((r) => (r.id === activeRoomId ? { ...r, unreadCount: 0 } : r));
         adminRoomsCache = normalized;
         setRooms(normalized);
-        setIsRoomsLoading(false);
+        setPagination(res.pagination);
       })
       .catch((err: unknown) => {
         if (!isMounted) return;
         if (!adminRoomsCache) {
           setRoomsError(err instanceof Error ? err.message : "Failed to load conversations.");
         }
+      })
+      .finally(() => {
+        if (!isMounted) return;
         setIsRoomsLoading(false);
+        setIsPageChanging(false);
       });
 
     return () => {
       isMounted = false;
     };
-  }, [activeRoomId]);
+  }, [page, limit, debouncedSearch, activeRoomId]);
+
+  const handlePrevPage = () => {
+    if (pagination.hasPrev && !isPageChanging && !isRoomsLoading) {
+      setPage((prev) => Math.max(1, prev - 1));
+    }
+  };
+
+  const handleNextPage = () => {
+    if (pagination.hasNext && !isPageChanging && !isRoomsLoading) {
+      setPage((prev) => prev + 1);
+    }
+  };
+
+  const handleLimitChange = (newLimit: number) => {
+    setLimit(newLimit);
+    setPage(1);
+  };
 
   // 2. Fetch messages when activeRoomId changes (with cache-first instant render)
   const fetchMessages = useCallback(async (roomId: string) => {
@@ -482,16 +567,18 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
       }
 
       // Update room lastMessage in sidebar list and bump to top
-      // NOTE: unread counts are managed by useAdminPrivateUnread hook via roomUnreadCounts
       setRooms((prev) => {
         const index = prev.findIndex((r) => r.id === targetRoomId);
         if (index === -1) {
-          fetchRooms();
+          if (page === 1) {
+            fetchRooms(1, limit, debouncedSearch);
+          }
           return prev;
         }
 
+        const existing = prev[index];
         const updatedRoom: AdminPrivateRoom = {
-          ...prev[index],
+          ...existing,
           lastMessage: {
             id: msg.id,
             senderId: msg.senderId,
@@ -499,6 +586,10 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
             createdAt: msg.createdAt,
           },
           updatedAt: msg.createdAt,
+          unreadCount:
+            targetRoomId === activeRoomId || msg.senderId === "admin"
+              ? 0
+              : (existing.unreadCount || 0) + 1,
         };
         const remaining = prev.filter((_, i) => i !== index);
         const nextRooms = [updatedRoom, ...remaining];
@@ -516,7 +607,7 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
       socket.off("connect", joinRoom);
       socket.off("private:message:new", handleNewMessage);
     };
-  }, [activeRoomId, scrollToBottom, fetchRooms, markRoomRead]);
+  }, [activeRoomId, scrollToBottom, fetchRooms, markRoomRead, page, limit, debouncedSearch]);
 
   // 4. Send message handler (Socket.IO with REST fallback)
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -638,26 +729,31 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
     }
   };
 
-  // Helper to extract numeric timestamp for sorting (like WhatsApp)
+  // Helper to extract the highest/latest numeric timestamp for sorting (latest messages first)
   const getRoomTimestamp = (room: AdminPrivateRoom): number => {
+    let latest = 0;
     if (room.lastMessage?.createdAt) {
       const t = new Date(room.lastMessage.createdAt).getTime();
-      if (!isNaN(t)) return t;
+      if (!isNaN(t) && t > latest) latest = t;
     }
     if (room.updatedAt) {
       const t = new Date(room.updatedAt).getTime();
-      if (!isNaN(t)) return t;
+      if (!isNaN(t) && t > latest) latest = t;
     }
     if (room.createdAt) {
       const t = new Date(room.createdAt).getTime();
-      if (!isNaN(t)) return t;
+      if (!isNaN(t) && t > latest) latest = t;
     }
-    return 0;
+    return latest;
   };
 
-  // Sort rooms by latest message (like WhatsApp)
+  // Sort rooms by latest message descending with stable secondary sort
   const sortedRooms = useMemo<AdminPrivateRoom[]>(() => {
-    return [...rooms].sort((a, b) => getRoomTimestamp(b) - getRoomTimestamp(a));
+    return [...rooms].sort((a, b) => {
+      const diff = getRoomTimestamp(b) - getRoomTimestamp(a);
+      if (diff !== 0) return diff;
+      return b.id.localeCompare(a.id);
+    });
   }, [rooms]);
 
   // Filter conversations
@@ -704,7 +800,7 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-bold text-muted uppercase tracking-wider">
-                Conversations ({filteredRooms.length})
+                Conversations ({pagination.total || filteredRooms.length})
               </span>
               {totalUnreadCount > 0 && (
                 <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-foreground px-1 text-[9px] font-bold text-background">
@@ -733,7 +829,8 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
                 <AlertCircle className="w-6 h-6 text-red-500 mx-auto" />
                 <p className="text-xs text-muted">{roomsError}</p>
                 <button
-                  onClick={fetchRooms}
+                  type="button"
+                  onClick={() => fetchRooms()}
                   className="px-3 py-1.5 bg-foreground text-background text-xs font-semibold rounded-lg"
                 >
                   Retry
@@ -753,6 +850,7 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
                 const displayId = getAnonymousLabel(room);
                 const roomUnread = roomUnreadCounts[room.id] ?? room.unreadCount ?? 0;
                 const unreadCount = !isSelected && roomUnread > 0 ? roomUnread : 0;
+                const isUnread = unreadCount > 0;
                 const timeString = room.lastMessage?.createdAt || room.updatedAt;
                 const isMine = room.lastMessage?.senderId === "admin";
 
@@ -761,24 +859,38 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
                     type="button"
                     key={room.id}
                     onClick={() => handleSelectRoom(room.id)}
-                    className={`w-full text-left p-4 transition-colors relative block group focus-visible:outline-none ${
+                    className={`w-full text-left p-3.5 transition-all relative block group focus-visible:outline-none ${
                       isSelected
-                        ? "bg-neutral-100 dark:bg-neutral-800 text-foreground border-l-2 border-l-foreground"
-                        : "hover:bg-neutral-100/70 dark:hover:bg-neutral-800/60 text-foreground"
+                        ? "bg-neutral-100 dark:bg-neutral-800 text-foreground border-l-[3px] border-l-foreground"
+                        : isUnread
+                        ? "bg-blue-50/50 dark:bg-blue-950/20 text-foreground border-l-[3px] border-l-blue-500 hover:bg-blue-100/50 dark:hover:bg-blue-900/30"
+                        : "hover:bg-neutral-100/70 dark:hover:bg-neutral-800/60 text-foreground border-l-[3px] border-l-transparent"
                     }`}
-                    aria-label={`Open conversation with ${room.adminLabel || displayId}${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
+                    aria-label={`Open conversation with ${room.adminLabel || displayId}${
+                      unreadCount > 0 ? ` (${unreadCount} unread message${unreadCount > 1 ? "s" : ""})` : ""
+                    }`}
                     aria-current={isSelected ? "page" : undefined}
                   >
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div
-                          className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-medium shrink-0 border transition-colors ${
-                            isSelected
-                              ? "bg-neutral-200 dark:bg-neutral-700 border-foreground/20 text-foreground"
-                              : "bg-neutral-100 dark:bg-neutral-800 border-border text-secondary group-hover:text-foreground group-hover:border-foreground/20"
-                          }`}
-                        >
-                          <User className="w-3.5 h-3.5" />
+                        <div className="relative shrink-0">
+                          <div
+                            className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-medium border transition-colors ${
+                              isSelected
+                                ? "bg-neutral-200 dark:bg-neutral-700 border-foreground/20 text-foreground"
+                                : isUnread
+                                ? "bg-blue-100 dark:bg-blue-900/50 border-blue-300/50 dark:border-blue-700 text-blue-600 dark:text-blue-400"
+                                : "bg-neutral-100 dark:bg-neutral-800 border-border text-secondary group-hover:text-foreground group-hover:border-foreground/20"
+                            }`}
+                          >
+                            <User className="w-3.5 h-3.5" />
+                          </div>
+                          {isUnread && (
+                            <span
+                              className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-blue-600 dark:bg-blue-500 rounded-full ring-2 ring-surface"
+                              aria-hidden="true"
+                            />
+                          )}
                         </div>
 
                         <div className="min-w-0 flex-1 flex items-center gap-1.5">
@@ -786,40 +898,69 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
                             <>
                               <span
                                 className={`text-xs truncate leading-tight text-foreground transition-colors ${
-                                  isSelected ? "font-bold" : "font-semibold group-hover:text-foreground"
+                                  isSelected || isUnread ? "font-bold" : "font-semibold group-hover:text-foreground"
                                 }`}
                               >
                                 {room.adminLabel}
                               </span>
-                              <span className="font-mono text-[10px] text-muted group-hover:text-secondary truncate shrink-0">
+                              <span
+                                className={`font-mono text-[10px] truncate shrink-0 ${
+                                  isUnread
+                                    ? "text-blue-700 dark:text-blue-300 font-medium"
+                                    : "text-muted group-hover:text-secondary"
+                                }`}
+                              >
                                 ({displayId})
                               </span>
                             </>
                           ) : (
                             <span
                               className={`text-xs truncate leading-tight text-foreground transition-colors ${
-                                isSelected ? "font-bold" : "font-semibold group-hover:text-foreground"
+                                isSelected || isUnread ? "font-bold" : "font-semibold group-hover:text-foreground"
                               }`}
                             >
                               {displayId}
+                            </span>
+                          )}
+                          {isUnread && (
+                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 rounded shrink-0">
+                              Unread
                             </span>
                           )}
                         </div>
                       </div>
 
                       {timeString && (
-                        <span className="text-[10px] text-muted group-hover:text-secondary font-normal shrink-0 tabular-nums transition-colors">
+                        <span
+                          className={`text-[10px] shrink-0 tabular-nums transition-colors ${
+                            isUnread
+                              ? "text-blue-600 dark:text-blue-400 font-bold"
+                              : "text-muted group-hover:text-secondary font-normal"
+                          }`}
+                        >
                           {formatRelativeTime(timeString)}
                         </span>
                       )}
                     </div>
 
                     <div className="flex items-center justify-between gap-2 pl-9.5">
-                      <p className="text-xs text-muted group-hover:text-secondary font-normal truncate leading-relaxed transition-colors">
+                      <p
+                        className={`text-xs truncate leading-relaxed transition-colors ${
+                          isUnread
+                            ? "text-foreground dark:text-neutral-100 font-medium"
+                            : "text-muted group-hover:text-secondary font-normal"
+                        }`}
+                      >
                         {room.lastMessage?.content ? (
                           <>
                             {isMine && (
-                              <span className="font-normal text-secondary group-hover:text-foreground">
+                              <span
+                                className={
+                                  isUnread
+                                    ? "font-semibold text-foreground"
+                                    : "font-normal text-secondary group-hover:text-foreground"
+                                }
+                              >
                                 You:{" "}
                               </span>
                             )}
@@ -831,8 +972,8 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
                       </p>
 
                       {unreadCount > 0 && (
-                        <span className="flex-shrink-0 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-foreground px-1 text-[9px] font-bold text-background">
-                          {unreadCount > 9 ? "9+" : unreadCount}
+                        <span className="flex-shrink-0 flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-blue-600 dark:bg-blue-500 px-1.5 text-[10px] font-bold text-white shadow-xs">
+                          {unreadCount > 99 ? "99+" : unreadCount}
                         </span>
                       )}
                     </div>
@@ -841,6 +982,67 @@ export default function AdminChatClient({ selectedRoomId: initialRoomId }: Admin
               })
             )}
           </ScrollArea>
+
+          {/* Pagination Footer Controls */}
+          <div className="p-3 border-t border-border bg-surface flex flex-col gap-2 shrink-0 select-none">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-[11px] text-muted font-medium">
+                {pagination.total === 0
+                  ? "0 conversations"
+                  : `${(page - 1) * limit + 1}–${Math.min(page * limit, pagination.total)} of ${pagination.total}`}
+              </span>
+
+              <div className="flex items-center gap-1.5">
+                <label htmlFor="admin-conversations-page-size" className="text-[11px] text-muted sr-only">
+                  Conversations per page
+                </label>
+                <select
+                  id="admin-conversations-page-size"
+                  value={limit}
+                  onChange={(e) => handleLimitChange(Number(e.target.value))}
+                  className="px-2 py-1 text-[11px] bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-1 focus:ring-foreground transition-colors cursor-pointer"
+                  aria-label="Conversations per page"
+                >
+                  <option value={20}>20 / page</option>
+                  <option value={50}>50 / page</option>
+                  <option value={100}>100 / page</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-1 pt-1">
+              <button
+                type="button"
+                onClick={handlePrevPage}
+                disabled={!pagination.hasPrev || isPageChanging || isRoomsLoading}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-border text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                aria-label="Previous page of conversations"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span>Prev</span>
+              </button>
+
+              <div className="flex items-center gap-1">
+                <span className="text-xs font-medium text-foreground tabular-nums">
+                  Page {pagination.totalPages > 0 ? page : 1} of {Math.max(1, pagination.totalPages)}
+                </span>
+                {isPageChanging && (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-muted inline ml-1" />
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleNextPage}
+                disabled={!pagination.hasNext || isPageChanging || isRoomsLoading}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-border text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                aria-label="Next page of conversations"
+              >
+                <span>Next</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* RIGHT COLUMN: Active Conversation Workspace */}

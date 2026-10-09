@@ -52,15 +52,36 @@ export function formatAdminUserDisplayId(rawId?: string): string {
   return `user#${shortId}`;
 }
 
+export interface AdminPrivateRoomsPagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasMore: boolean;
+  hasPrev: boolean;
+  hasNext: boolean;
+}
+
+export interface GetAdminPrivateRoomsResponse {
+  rooms: AdminPrivateRoom[];
+  pagination: AdminPrivateRoomsPagination;
+}
+
 /**
- * Fetch all developer private room conversations for Admin.
+ * Fetch developer private room conversations for Admin with server-side pagination.
  */
 export async function getAdminPrivateRooms(
-  limit = 50,
-  cursor?: string
-): Promise<AdminPrivateRoom[]> {
-  const params = new URLSearchParams({ limit: String(limit) });
+  page = 1,
+  limit = 20,
+  cursor?: string,
+  search?: string
+): Promise<GetAdminPrivateRoomsResponse> {
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
   if (cursor) params.set("cursor", cursor);
+  if (search && search.trim()) params.set("search", search.trim());
 
   const res = await adminFetch(getApiUrl(`/api/admin/private-rooms?${params.toString()}`));
 
@@ -77,8 +98,24 @@ export async function getAdminPrivateRooms(
   }
 
   const json = await res.json();
-  if (!Array.isArray(json?.data)) return [];
-  return json.data as AdminPrivateRoom[];
+  const rooms: AdminPrivateRoom[] = Array.isArray(json?.data)
+    ? (json.data as AdminPrivateRoom[])
+    : Array.isArray(json?.data?.rooms)
+    ? (json.data.rooms as AdminPrivateRoom[])
+    : [];
+
+  const rawPagination = json?.pagination || json?.data?.pagination;
+  const pagination: AdminPrivateRoomsPagination = {
+    page: rawPagination?.page ?? page,
+    limit: rawPagination?.limit ?? limit,
+    total: rawPagination?.total ?? rooms.length,
+    totalPages: rawPagination?.totalPages ?? Math.max(1, Math.ceil((rawPagination?.total ?? rooms.length) / limit)),
+    hasMore: rawPagination?.hasMore ?? false,
+    hasPrev: rawPagination?.hasPrev ?? page > 1,
+    hasNext: rawPagination?.hasNext ?? (rawPagination ? page < rawPagination.totalPages : false),
+  };
+
+  return { rooms, pagination };
 }
 
 /**

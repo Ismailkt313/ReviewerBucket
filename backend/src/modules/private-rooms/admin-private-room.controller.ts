@@ -11,14 +11,17 @@ export const getAdminPrivateRooms = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const limit = Number(req.query.limit) || 50;
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 20;
     const cursor = typeof req.query.cursor === "string" ? req.query.cursor : undefined;
+    const search = typeof req.query.search === "string" ? req.query.search : undefined;
 
-    const rooms = await privateRoomService.getAdminDeveloperRooms(limit, cursor);
+    const result = await privateRoomService.getAdminDeveloperRooms(page, limit, cursor, search);
 
     res.status(200).json({
       success: true,
-      data: rooms
+      data: result.rooms,
+      pagination: result.pagination
     });
   } catch (error) {
     next(error);

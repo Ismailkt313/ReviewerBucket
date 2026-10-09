@@ -94,7 +94,7 @@ describe("Backend Module: Admin Private Chat Unread Message System Tests", () =>
   });
 
   test("5. Admin developer rooms listing includes accurate unreadCount per room", async () => {
-    const rooms = await privateRoomService.getAdminDeveloperRooms();
+    const { rooms } = await privateRoomService.getAdminDeveloperRooms();
     const r1 = rooms.find((r) => r.id === room1Id);
     const r2 = rooms.find((r) => r.id === room2Id);
 

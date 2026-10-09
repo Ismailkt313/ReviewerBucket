@@ -39,9 +39,11 @@ export class PrivateMessageService {
     // Create message with server-derived sender identity
     const message = await this.repository.create(roomId, trimmedUser, content, replyToId);
 
-    // Non-blocking updates: read state and room activity timestamp
-    this.privateRoomService.markRoomAsRead(roomId, trimmedUser).catch(() => {});
-    PrivateRoomModel.findByIdAndUpdate(roomId, { updatedAt: new Date() }).catch(() => {});
+    // Synchronously update room activity timestamp and mark room as read for sender
+    await Promise.all([
+      this.privateRoomService.markRoomAsRead(roomId, trimmedUser),
+      PrivateRoomModel.findByIdAndUpdate(roomId, { updatedAt: new Date(message.createdAt) })
+    ]);
 
     // Emit real-time message and unread increment to recipient
     const otherParticipant = room.participants.find((p) => p !== trimmedUser);
@@ -100,9 +102,11 @@ export class PrivateMessageService {
     // Create message with server-derived admin sender identity
     const message = await this.repository.create(roomId, "admin", content, replyToId);
 
-    // Non-blocking updates: read state and room activity timestamp
-    this.privateRoomService.markRoomAsRead(roomId, "admin").catch(() => {});
-    PrivateRoomModel.findByIdAndUpdate(roomId, { updatedAt: new Date() }).catch(() => {});
+    // Synchronously update room activity timestamp and mark room as read for admin
+    await Promise.all([
+      this.privateRoomService.markRoomAsRead(roomId, "admin"),
+      PrivateRoomModel.findByIdAndUpdate(roomId, { updatedAt: new Date(message.createdAt) })
+    ]);
 
     // Emit real-time message and unread increment to anonymous recipient
     const anonymousParticipant = room.participants.find((p) => p !== "admin");
