@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, AlertCircle } from "lucide-react";
 import { getApiUrl } from "@/app/utils/api";
 import { getAnonymousClientId } from "@/app/utils/anonymous-id";
 import { getSocket } from "@/app/utils/socket";
@@ -59,11 +59,15 @@ export default function ReviewerRatingSection({
   const [mounted, setMounted] = useState(false);
   const [showNotice, setShowNotice] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [isRateLimited, setIsRateLimited] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const socket = getSocket();
-    const handleStatsUpdated = (data: { reviewerId: string; stats: any }) => {
+    const handleStatsUpdated = (data: {
+      reviewerId: string;
+      stats?: { averageRating?: number | null; ratingCount?: number };
+    }) => {
       if (data?.reviewerId === reviewerId && data?.stats) {
         if (typeof data.stats.averageRating !== "undefined") {
           setAverageRating(data.stats.averageRating);
@@ -118,6 +122,7 @@ export default function ReviewerRatingSection({
 
   const handleRate = async (value: number) => {
     setErrorMessage("");
+    setIsRateLimited(false);
     const prevRating = localRating;
     // Optimistic UI update
     setLocalRating(value);
@@ -137,7 +142,21 @@ export default function ReviewerRatingSection({
       });
 
       if (!res.ok) {
-        throw new Error("Rating submission failed");
+        let errorText = "Could not submit rating. Please try again.";
+        const rateLimited = res.status === 429;
+        try {
+          const resJson = await res.json();
+          if (resJson?.message) {
+            errorText = resJson.message;
+          }
+        } catch {
+          // Ignore JSON parse failure
+        }
+
+        setIsRateLimited(rateLimited);
+        setLocalRating(prevRating);
+        setErrorMessage(errorText);
+        return;
       }
 
       try {
@@ -189,6 +208,7 @@ export default function ReviewerRatingSection({
       }, 2000);
     } catch {
       setLocalRating(prevRating);
+      setIsRateLimited(false);
       setErrorMessage("Could not submit rating. Please try again.");
     }
   };
@@ -291,7 +311,32 @@ export default function ReviewerRatingSection({
             })}
           </div>
           {errorMessage && (
-            <p className="text-[11px] text-red-650 dark:text-red-400 font-semibold">{errorMessage}</p>
+            isRateLimited ? (
+              <div
+                className="mt-2.5 w-full flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 dark:bg-amber-950/40 p-2.5 text-left text-xs animate-slide-up-fade shadow-xs"
+                role="alert"
+                aria-live="polite"
+              >
+                <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-[11px] uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                    Rate Limit Reached
+                  </p>
+                  <p className="text-[11px] mt-0.5 text-amber-900/90 dark:text-amber-200/90 leading-snug">
+                    {errorMessage}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div
+                className="mt-2 w-full flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 dark:bg-red-950/40 px-2.5 py-2 text-xs text-red-650 dark:text-red-400 animate-slide-up-fade"
+                role="alert"
+                aria-live="polite"
+              >
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                <p className="text-[11px] font-medium leading-snug">{errorMessage}</p>
+              </div>
+            )
           )}
         </div>
 
