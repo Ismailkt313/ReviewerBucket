@@ -18,6 +18,9 @@ export default function Footer() {
             <p className="text-xs sm:text-sm text-secondary leading-relaxed max-w-md">
               A student-focused platform to find reviewers, learn from honest interview experiences, and participate in an open Brototype community.
             </p>
+            <p className="text-xs text-muted leading-relaxed max-w-md">
+              Community contributions are welcome. Help improve Reviewer Bucket by contributing code, fixing issues, or suggesting new features.
+            </p>
           </div>
 
           {/* Navigation Columns (Right) */}
@@ -65,18 +68,34 @@ export default function Footer() {
                 >
                   Private Chats
                 </Link>
+                <a
+                  href="https://github.com/Ismailkt313/ReviewerBucket"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs sm:text-sm text-secondary hover:text-foreground transition-colors duration-150"
+                >
+                  Contribute on GitHub
+                </a>
               </nav>
             </div>
           </div>
         </div>
 
-        {/* Bottom Bar: Left-to-Right layout with Disclaimer on left, Copyright on right */}
-        <div className="border-t border-border pt-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <p className="text-xs text-muted leading-relaxed max-w-xl">
+        {/* Bottom Bar */}
+        <div className="border-t border-border pt-8 flex flex-col items-center gap-3">
+          <p className="text-xs text-muted leading-relaxed max-w-xl text-center">
             Reviewer Bucket is an independent, student-focused project and is not affiliated with Brototype.
           </p>
-          <p className="text-xs text-muted whitespace-nowrap">
-            &copy; {currentYear} Reviewer Bucket. All rights reserved.
+          <p className="text-xs text-muted">
+            Reviewer Bucket &copy; {currentYear} | Developed by{" "}
+            <a
+              href="https://linkedin.com/in/ismail-kt"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-secondary hover:text-foreground underline underline-offset-2 transition-colors duration-150"
+            >
+              Ismail KT
+            </a>
           </p>
         </div>
       </div>

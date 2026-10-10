@@ -99,9 +99,9 @@ export default async function Home() {
           <ReviewerExplorer reviewers={realReviewers} />
         </Suspense>
         <HowItWorks />
-        <About />
-        <CommunitySection />
-        <FAQ />
+        {/* <About /> */}
+        {/* <CommunitySection /> */}
+        {/* <FAQ /> */}
         <Disclaimer />
       </main>
       <Footer />
